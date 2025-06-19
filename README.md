@@ -13,7 +13,8 @@ A modern, interactive tool for reviewing Terraform plans in a beautiful HTML int
 - **Multiple Input Methods**: Read from files or stdin
 - **JSON Export**: Export parsed plan data as JSON for integration with other tools
 
-## Screenshot
+## Screenshots
+![CleanShot 2025-06-19 at 14 41 29@2x](https://github.com/user-attachments/assets/7a24b08c-6d45-4d48-a43c-975ea80bccea)
 ![CleanShot 2025-06-19 at 14 37 22](https://github.com/user-attachments/assets/214c19d6-f1ad-493a-83ff-490e3b66a3cc)
 
 
