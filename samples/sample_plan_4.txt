@@ -1,0 +1,216 @@
+Terraform used the selected providers to generate the following execution plan.
+Resource actions are indicated with the following symbols:
+  + create
+  ~ update in-place
+  - destroy
+  -/+ destroy and then create replacement
+
+Terraform will perform the following actions:
+
+  # module.networking.module.security.aws_security_group.app[0] will be created
+  + resource "aws_security_group" "app" {
+      + arn                    = (known after apply)
+      + description            = "Security group for application servers"
+      + egress                 = [
+          + {
+              + cidr_blocks      = [
+                  + "0.0.0.0/0",
+                ]
+              + description      = ""
+              + from_port        = 0
+              + ipv6_cidr_blocks = []
+              + prefix_list_ids  = []
+              + protocol         = "-1"
+              + security_groups  = []
+              + self             = false
+              + to_port          = 0
+            },
+        ]
+      + id                     = (known after apply)
+      + ingress                = [
+          + {
+              + cidr_blocks      = [
+                  + "10.0.0.0/8",
+                ]
+              + description      = "HTTP from VPC"
+              + from_port        = 80
+              + ipv6_cidr_blocks = []
+              + prefix_list_ids  = []
+              + protocol         = "tcp"
+              + security_groups  = []
+              + self             = false
+              + to_port          = 80
+            },
+          + {
+              + cidr_blocks      = [
+                  + "10.0.0.0/8",
+                ]
+              + description      = "HTTPS from VPC"
+              + from_port        = 443
+              + ipv6_cidr_blocks = []
+              + prefix_list_ids  = []
+              + protocol         = "tcp"
+              + security_groups  = []
+              + self             = false
+              + to_port          = 443
+            },
+          + {
+              + cidr_blocks      = []
+              + description      = "SSH from bastion"
+              + from_port        = 22
+              + ipv6_cidr_blocks = []
+              + prefix_list_ids  = []
+              + protocol         = "tcp"
+              + security_groups  = (known after apply)
+              + self             = false
+              + to_port          = 22
+            },
+        ]
+      + name                   = (known after apply)
+      + name_prefix            = "app-sg-"
+      + owner_id               = (known after apply)
+      + revoke_rules_on_delete = false
+      + tags                   = {
+          + "Environment" = "staging"
+          + "Purpose"     = "application"
+        }
+      + tags_all               = {
+          + "Environment" = "staging"
+          + "Purpose"     = "application"
+        }
+      + vpc_id                 = (known after apply)
+    }
+
+  # aws_launch_template.web[2] will be replaced
+  -/+ resource "aws_launch_template" "web" {
+      ~ arn             = "arn:aws:ec2:us-west-2:123456789012:launch-template/lt-0123456789abcdef0" -> (known after apply)
+      ~ default_version = "1" -> (known after apply)
+      ~ id              = "lt-0123456789abcdef0" -> (known after apply)
+      ~ image_id        = "ami-0c02fb55956c7d316" -> "ami-0c7217cdde317cfec" # forces replacement
+      ~ latest_version  = "1" -> (known after apply)
+        name            = "web-server-template"
+        # (3 unchanged attributes hidden)
+
+      ~ block_device_mappings {
+          ~ device_name = "/dev/sda1" -> "/dev/xvda" # forces replacement
+            # (1 unchanged attribute hidden)
+
+          ~ ebs {
+              ~ delete_on_termination = false -> true
+              ~ volume_size           = 8 -> 20
+                # (4 unchanged attributes hidden)
+            }
+        }
+
+      ~ tag_specifications {
+            resource_type = "instance"
+          ~ tags          = {
+              + "LaunchTemplate" = "web-server-template"
+                # (2 unchanged attributes hidden)
+            }
+        }
+
+        # (4 unchanged blocks hidden)
+    }
+
+  # module.database.aws_db_subnet_group.main will be destroyed
+  - resource "aws_db_subnet_group" "main" {
+      - arn                     = "arn:aws:rds:us-west-2:123456789012:subgrp:main-db-subnet-group" -> null
+      - description             = "Database subnet group for main application" -> null
+      - id                      = "main-db-subnet-group" -> null
+      - name                    = "main-db-subnet-group" -> null
+      - subnet_ids              = [
+          - "subnet-0123456789abcdef0",
+          - "subnet-0fedcba9876543210",
+        ] -> null
+      - supported_network_types = [
+          - "IPV4",
+        ] -> null
+      - tags                    = {
+          - "Environment" = "staging"
+        } -> null
+      - tags_all                = {
+          - "Environment" = "staging"
+        } -> null
+    }
+
+  # kubernetes_deployment.app will be updated in-place
+  ~ resource "kubernetes_deployment" "app" {
+        id = "default/myapp"
+        # (1 unchanged attribute hidden)
+
+      ~ metadata {
+            name      = "myapp"
+            namespace = "default"
+          ~ labels    = {
+              ~ "version" = "v1.0.0" -> "v1.1.0"
+                # (2 unchanged attributes hidden)
+            }
+            # (5 unchanged attributes hidden)
+        }
+
+      ~ spec {
+            replicas = 3
+            # (2 unchanged attributes hidden)
+
+          ~ template {
+              ~ metadata {
+                  ~ labels = {
+                      ~ "version" = "v1.0.0" -> "v1.1.0"
+                        # (2 unchanged attributes hidden)
+                    }
+                    # (1 unchanged attribute hidden)
+                }
+
+              ~ spec {
+                  ~ container {
+                      ~ env_from {
+                          ~ config_map_ref {
+                              ~ name = "app-config-v1" -> "app-config-v2"
+                            }
+                        }
+                      ~ image = "myapp:v1.0.0" -> "myapp:v1.1.0"
+                        name  = "app"
+                        # (4 unchanged attributes hidden)
+                    }
+                    # (3 unchanged attributes hidden)
+                }
+            }
+        }
+    }
+
+  # helm_release.ingress_nginx will be updated in-place
+  ~ resource "helm_release" "ingress_nginx" {
+        id             = "ingress-nginx"
+        name           = "ingress-nginx"
+        # (17 unchanged attributes hidden)
+
+      ~ set {
+          ~ name  = "controller.service.type" -> "controller.service.loadBalancerSourceRanges"
+          ~ value = "LoadBalancer" -> "10.0.0.0/8,192.168.0.0/16"
+        }
+
+      ~ values = [
+          - <<-EOT
+                controller:
+                  service:
+                    type: LoadBalancer
+                  metrics:
+                    enabled: false
+            EOT,
+          + <<-EOT
+                controller:
+                  service:
+                    type: LoadBalancer
+                    loadBalancerSourceRanges:
+                      - "10.0.0.0/8"
+                      - "192.168.0.0/16"
+                  metrics:
+                    enabled: true
+                    serviceMonitor:
+                      enabled: true
+            EOT,
+        ]
+    }
+
+Plan: 1 to add, 3 to change, 2 to destroy.

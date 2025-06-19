@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Terraform Plan Review</title>
+    <style>
+        /* Embedded CSS */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f5f5f5;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+
+        .summary {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            margin-top: 20px;
+        }
+
+        .summary-item {
+            padding: 15px 25px;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 1.1em;
+            min-width: 120px;
+            text-align: center;
+        }
+
+        .summary-add {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .summary-change {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+
+        .summary-destroy {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .no-changes {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+            padding: 20px;
+            text-align: center;
+            border-radius: 6px;
+            font-size: 1.2em;
+        }
+
+        .resource-changes {
+            margin-top: 30px;
+        }
+
+        .resource-card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+
+        .resource-header {
+            padding: 20px;
+            cursor: pointer;
+            border-left: 5px solid #ccc;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background-color 0.2s;
+        }
+
+        .resource-header:hover {
+            background-color: #f8f9fa;
+        }
+
+        .resource-header.expanded {
+            background-color: #e9ecef;
+        }
+
+        .change-create .resource-header {
+            border-left-color: #28a745;
+        }
+
+        .change-update .resource-header {
+            border-left-color: #ffc107;
+        }
+
+        .change-delete .resource-header {
+            border-left-color: #dc3545;
+        }
+
+        .change-replace .resource-header {
+            border-left-color: #fd7e14;
+        }
+
+        .resource-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .resource-icon {
+            font-size: 1.2em;
+        }
+
+        .resource-address {
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+
+        .change-type {
+            background: #6c757d;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            text-transform: uppercase;
+        }
+
+        .change-create .change-type {
+            background: #28a745;
+        }
+
+        .change-update .change-type {
+            background: #ffc107;
+            color: #212529;
+        }
+
+        .change-delete .change-type {
+            background: #dc3545;
+        }
+
+        .change-replace .change-type {
+            background: #fd7e14;
+        }
+
+        .expand-indicator {
+            font-size: 1.2em;
+            transition: transform 0.2s;
+        }
+
+        .expanded .expand-indicator {
+            transform: rotate(180deg);
+        }
+
+        .resource-content {
+            display: none;
+            padding: 0 20px 20px;
+            border-top: 1px solid #eee;
+        }
+
+        .resource-content.expanded {
+            display: block;
+        }
+
+        .resource-diff {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            line-height: 1.4;
+            white-space: pre-wrap;
+            overflow-x: auto;
+            margin-bottom: 15px;
+        }
+
+        /* Terraform syntax highlighting */
+        .tf-add {
+            color: #68d391;
+        }
+
+        .tf-delete {
+            color: #fc8181;
+        }
+
+        .tf-change {
+            color: #fbd38d;
+        }
+
+        .tf-replace {
+            color: #f687b3;
+        }
+
+        .tf-sensitive {
+            color: #b794f6;
+            font-style: italic;
+        }
+
+        .tf-computed {
+            color: #81e6d9;
+            font-style: italic;
+        }
+
+        .review-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: background-color 0.2s;
+        }
+
+        .btn-approve {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-approve:hover {
+            background: #218838;
+        }
+
+        .btn-needs-changes {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-needs-changes:hover {
+            background: #c82333;
+        }
+
+        .btn-next {
+            background: #007bff;
+            color: white;
+        }
+
+        .btn-next:hover {
+            background: #0056b3;
+        }
+
+        .btn.reviewed {
+            background: #6c757d;
+            cursor: default;
+        }
+
+        .review-status {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+
+        .status-approved {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-needs-changes {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .progress {
+            margin-top: 20px;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #e9ecef;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #28a745, #20c997);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .progress-text {
+            text-align: center;
+            margin-top: 10px;
+            font-weight: bold;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .summary {
+                flex-direction: column;
+            }
+            
+            .resource-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+            
+            .review-actions {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 Terraform Plan Review</h1>
+            
+            {% if plan.has_changes %}
+                <div class="summary">
+                    {% if plan.to_add > 0 %}
+                        <div class="summary-item summary-add">
+                            ➕ {{ plan.to_add }} to add
+                        </div>
+                    {% endif %}
+                    
+                    {% if plan.to_change > 0 %}
+                        <div class="summary-item summary-change">
+                            🔄 {{ plan.to_change }} to change
+                        </div>
+                    {% endif %}
+                    
+                    {% if plan.to_destroy > 0 %}
+                        <div class="summary-item summary-destroy">
+                            ❌ {{ plan.to_destroy }} to destroy
+                        </div>
+                    {% endif %}
+                </div>
+            {% else %}
+                <div class="no-changes">
+                    ✅ No changes. Infrastructure is up-to-date.
+                </div>
+            {% endif %}
+        </div>
+        
+        {% if plan.has_changes %}
+            <div class="progress">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <div class="progress-text" id="progressText">
+                    0 of {{ plan.resource_changes|length }} resources reviewed
+                </div>
+            </div>
+            
+            <div class="resource-changes">
+                {% for resource in plan.resource_changes %}
+                    <div class="resource-card {{ resource.change_type|change_type_class }}" data-resource-index="{{ loop.index0 }}">
+                        <div class="resource-header" onclick="toggleResource({{ loop.index0 }})">
+                            <div class="resource-title">
+                                <span class="resource-icon">{{ resource.change_type|change_type_icon }}</span>
+                                <span class="resource-address">{{ resource.resource_address }}</span>
+                                <div class="change-type">{{ resource.change_type.value }}</div>
+                                <div class="review-status" id="status-{{ loop.index0 }}" style="display: none;"></div>
+                            </div>
+                            <div class="expand-indicator">▼</div>
+                        </div>
+                        
+                        <div class="resource-content" id="content-{{ loop.index0 }}">
+                            <div class="resource-diff">{{ plan.raw_plan|extract_resource_diff(resource)|colorize_terraform|safe }}</div>
+                            
+                            <div class="review-actions">
+                                <button class="btn btn-approve" onclick="markAsReviewed({{ loop.index0 }}, 'approved')">
+                                    ✅ Approve
+                                </button>
+                                <button class="btn btn-needs-changes" onclick="markAsReviewed({{ loop.index0 }}, 'needs-changes')">
+                                    ⚠️ Needs Changes
+                                </button>
+                                <button class="btn btn-next" onclick="goToNext({{ loop.index0 }})">
+                                    ⏭️ Next Change
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    </div>
+
+    <script>
+        // JavaScript for interactivity
+        let reviewedResources = new Set();
+        let totalResources = {{ plan.resource_changes|length }};
+
+        function toggleResource(index) {
+            const content = document.getElementById(`content-${index}`);
+            const header = content.previousElementSibling;
+            
+            if (content.classList.contains('expanded')) {
+                content.classList.remove('expanded');
+                header.classList.remove('expanded');
+            } else {
+                content.classList.add('expanded');
+                header.classList.add('expanded');
+            }
+        }
+
+        function markAsReviewed(index, status) {
+            reviewedResources.add(index);
+            
+            const statusElement = document.getElementById(`status-${index}`);
+            const buttons = document.querySelector(`[data-resource-index="${index}"] .review-actions`).children;
+            
+            // Update status display
+            statusElement.style.display = 'inline-block';
+            if (status === 'approved') {
+                statusElement.textContent = '✅ Approved';
+                statusElement.className = 'review-status status-approved';
+            } else if (status === 'needs-changes') {
+                statusElement.textContent = '⚠️ Needs Changes';
+                statusElement.className = 'review-status status-needs-changes';
+            }
+            
+            // Disable review buttons
+            buttons[0].classList.add('reviewed');
+            buttons[1].classList.add('reviewed');
+            buttons[0].disabled = true;
+            buttons[1].disabled = true;
+            
+            updateProgress();
+        }
+
+        function goToNext(currentIndex) {
+            const nextIndex = currentIndex + 1;
+            if (nextIndex < totalResources) {
+                const nextCard = document.querySelector(`[data-resource-index="${nextIndex}"]`);
+                const nextContent = document.getElementById(`content-${nextIndex}`);
+                const nextHeader = nextContent.previousElementSibling;
+                
+                // Scroll to next card
+                nextCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                
+                // Expand next card
+                setTimeout(() => {
+                    nextContent.classList.add('expanded');
+                    nextHeader.classList.add('expanded');
+                }, 500);
+            } else {
+                alert('You have reached the last change!');
+            }
+        }
+
+        function updateProgress() {
+            const progressFill = document.getElementById('progressFill');
+            const progressText = document.getElementById('progressText');
+            
+            const percentage = (reviewedResources.size / totalResources) * 100;
+            progressFill.style.width = `${percentage}%`;
+            progressText.textContent = `${reviewedResources.size} of ${totalResources} resources reviewed`;
+            
+            if (reviewedResources.size === totalResources) {
+                progressText.innerHTML += ' 🎉 <strong>All resources reviewed!</strong>';
+            }
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            // Press 'n' to go to next unreviewed resource
+            if (e.key === 'n' || e.key === 'N') {
+                for (let i = 0; i < totalResources; i++) {
+                    if (!reviewedResources.has(i)) {
+                        const card = document.querySelector(`[data-resource-index="${i}"]`);
+                        card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        
+                        const content = document.getElementById(`content-${i}`);
+                        const header = content.previousElementSibling;
+                        content.classList.add('expanded');
+                        header.classList.add('expanded');
+                        break;
+                    }
+                }
+            }
+        });
+
+        // Initialize - expand first resource if any
+        if (totalResources > 0) {
+            toggleResource(0);
+        }
+    </script>
+</body>
+</html>
