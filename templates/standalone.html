@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -17,6 +18,8 @@
             line-height: 1.6;
             color: #333;
             background-color: #f5f5f5;
+            padding-bottom: 100px;
+            /* Space for floating progress bar */
         }
 
         .container {
@@ -29,7 +32,7 @@
             background: white;
             padding: 30px;
             border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
             margin-bottom: 30px;
         }
 
@@ -119,16 +122,61 @@
             font-size: 1.2em;
         }
 
+        .change-group {
+            margin-bottom: 40px;
+        }
+
+        .change-group-header {
+            background: white;
+            padding: 15px 20px;
+            border-radius: 8px 8px 0 0;
+            border-left: 5px solid #666;
+            margin-bottom: 0;
+            font-weight: bold;
+            color: #2c3e50;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .change-group-header.destroy-group {
+            border-left-color: #dc3545;
+            background: linear-gradient(90deg, #fff5f5, #ffffff);
+        }
+
+        .change-group-header.replace-group {
+            border-left-color: #fd7e14;
+            background: linear-gradient(90deg, #fff8f0, #ffffff);
+        }
+
+        .change-group-header.update-group {
+            border-left-color: #ffc107;
+            background: linear-gradient(90deg, #fffdf0, #ffffff);
+        }
+
+        .change-group-header.create-group {
+            border-left-color: #28a745;
+            background: linear-gradient(90deg, #f0fff4, #ffffff);
+        }
+
         .resource-changes {
             margin-top: 30px;
         }
 
         .resource-card {
             background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
+            border-radius: 0 0 8px 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2px;
             overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .resource-card:last-child {
+            border-radius: 0 0 8px 8px;
+            margin-bottom: 20px;
+        }
+
+        .resource-card:first-child {
+            border-radius: 0;
         }
 
         .resource-header {
@@ -182,6 +230,35 @@
             font-size: 1.1em;
         }
 
+        /* Color-coded resource names */
+        .resource-name {
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            font-size: 1.2em;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        .change-create .resource-name {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .change-update .resource-name {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .change-delete .resource-name {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .change-replace .resource-name {
+            background: #ffeaa7;
+            color: #e67e22;
+        }
+
         .change-type {
             background: #6c757d;
             color: white;
@@ -210,7 +287,7 @@
 
         .expand-indicator {
             font-size: 1.2em;
-            transition: transform 0.2s;
+            transition: transform 0.3s ease;
         }
 
         .expanded .expand-indicator {
@@ -221,10 +298,22 @@
             display: none;
             padding: 0 20px 20px;
             border-top: 1px solid #eee;
+            transition: all 0.5s ease;
+            opacity: 0;
+            max-height: 0;
+            overflow: hidden;
         }
 
         .resource-content.expanded {
             display: block;
+            opacity: 1;
+            max-height: 2000px;
+        }
+
+        .resource-content.collapsing {
+            opacity: 0;
+            max-height: 0;
+            transition: opacity 0.8s ease, max-height 0.8s ease;
         }
 
         .resource-diff {
@@ -354,47 +443,61 @@
             color: #721c24;
         }
 
-        .progress {
-            margin-top: 20px;
+        /* Floating Progress Bar */
+        .floating-progress {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
             background: white;
-            padding: 20px;
+            padding: 15px;
             border-radius: 8px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            min-width: 250px;
+            z-index: 1000;
+            border: 1px solid #dee2e6;
         }
 
-        .progress-header {
+        .floating-progress-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 15px;
+            margin-bottom: 10px;
+            font-size: 0.9em;
+            font-weight: bold;
         }
 
-        .progress-bar {
+        .floating-progress-text {
+            color: #2c3e50;
+        }
+
+        .floating-progress-bar {
             width: 100%;
-            height: 20px;
+            height: 8px;
             background: #e9ecef;
-            border-radius: 10px;
+            border-radius: 4px;
             overflow: hidden;
         }
 
-        .progress-fill {
+        .floating-progress-fill {
             height: 100%;
             background: linear-gradient(90deg, #28a745, #20c997);
             width: 0%;
             transition: width 0.3s ease;
         }
 
-        .progress-text {
-            text-align: center;
-            margin-top: 10px;
-            font-weight: bold;
+        .floating-progress-stats {
+            margin-top: 8px;
+            font-size: 0.8em;
+            color: #666;
+            display: flex;
+            justify-content: space-between;
         }
 
         .full-plan-section {
             margin-top: 40px;
             background: white;
             border-radius: 8px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
             overflow: hidden;
         }
 
@@ -439,18 +542,19 @@
         @media (max-width: 768px) {
             .container {
                 padding: 10px;
+                padding-bottom: 120px;
             }
-            
+
             .summary {
                 flex-direction: column;
             }
-            
+
             .resource-header {
                 flex-direction: column;
                 align-items: flex-start;
                 gap: 10px;
             }
-            
+
             .review-actions {
                 flex-direction: column;
             }
@@ -459,14 +563,21 @@
                 flex-direction: column;
                 align-items: flex-start;
             }
+
+            .floating-progress {
+                right: 10px;
+                left: 10px;
+                min-width: auto;
+            }
         }
     </style>
 </head>
+
 <body>
     <div class="container">
         <div class="header">
             <h1>🔍 Terraform Plan Review</h1>
-            
+
             <div class="plan-info">
                 <div>
                     <span class="plan-id">Plan ID: <span id="planId">Loading...</span></span>
@@ -475,105 +586,285 @@
                     <span class="state-indicator" id="stateIndicator">New Review</span>
                 </div>
             </div>
-            
+
             {% if plan.has_changes %}
-                <div class="summary">
-                    {% if plan.to_add > 0 %}
-                        <div class="summary-item summary-add">
-                            ➕ {{ plan.to_add }} to add
-                        </div>
-                    {% endif %}
-                    
-                    {% if plan.to_change > 0 %}
-                        <div class="summary-item summary-change">
-                            🔄 {{ plan.to_change }} to change
-                        </div>
-                    {% endif %}
-                    
-                    {% if plan.to_destroy > 0 %}
-                        <div class="summary-item summary-destroy">
-                            ❌ {{ plan.to_destroy }} to destroy
-                        </div>
-                    {% endif %}
+            <div class="summary">
+                {% if plan.to_add > 0 %}
+                <div class="summary-item summary-add">
+                    ➕ {{ plan.to_add }} to add
                 </div>
+                {% endif %}
+
+                {% if plan.to_change > 0 %}
+                <div class="summary-item summary-change">
+                    🔄 {{ plan.to_change }} to change
+                </div>
+                {% endif %}
+
+                {% if plan.to_destroy > 0 %}
+                <div class="summary-item summary-destroy">
+                    ❌ {{ plan.to_destroy }} to destroy
+                </div>
+                {% endif %}
+            </div>
             {% else %}
-                <div class="no-changes">
-                    ✅ No changes. Infrastructure is up-to-date.
-                </div>
+            <div class="no-changes">
+                ✅ No changes. Infrastructure is up-to-date.
+            </div>
             {% endif %}
         </div>
-        
+
         {% if plan.has_changes %}
-            <div class="progress">
-                <div class="progress-header">
-                    <div class="progress-text" id="progressText">
-                        0 of {{ plan.resource_changes|length }} resources reviewed
-                    </div>
-                    <button class="btn btn-clear-all" onclick="clearAllReviews()" title="Clear all review states for this plan">
-                        🗑️ Clear All Reviews
-                    </button>
-                </div>
-                <div class="progress-bar">
-                    <div class="progress-fill" id="progressFill"></div>
-                </div>
+        <!-- Floating Progress Bar -->
+        <div class="floating-progress">
+            <div class="floating-progress-header">
+                <span class="floating-progress-text" id="floatingProgressText">Review Progress</span>
+                <button class="btn btn-clear-all" onclick="clearAllReviews()"
+                    title="Clear all review states for this plan">
+                    🗑️
+                </button>
             </div>
-            
-            <div class="resource-changes">
-                {% for resource in plan.resource_changes %}
-                    <div class="resource-card {{ resource.change_type|change_type_class }}" data-resource-index="{{ loop.index0 }}">
-                        <div class="resource-header" onclick="toggleResource({{ loop.index0 }})">
-                            <div class="resource-title">
-                                <span class="resource-icon">{{ resource.change_type|change_type_icon }}</span>
-                                <span class="resource-address">{{ resource.resource_address }}</span>
-                                <div class="change-type">{{ resource.change_type.value }}</div>
-                                <div class="review-status" id="status-{{ loop.index0 }}" style="display: none;"></div>
-                            </div>
-                            <div class="expand-indicator">▼</div>
+            <div class="floating-progress-bar">
+                <div class="floating-progress-fill" id="floatingProgressFill"></div>
+            </div>
+            <div class="floating-progress-stats">
+                <span id="floatingProgressStats">0 of {{ plan.resource_changes|length }} reviewed</span>
+                <span id="floatingProgressPercent">0%</span>
+            </div>
+        </div>
+
+        <div class="resource-changes">
+            {% set destroy_resources = [] %}
+            {% set replace_resources = [] %}
+            {% set update_resources = [] %}
+            {% set create_resources = [] %}
+
+            {% for resource in plan.resource_changes %}
+            {% if resource.change_type.value == 'delete' %}
+            {% set _ = destroy_resources.append(resource) %}
+            {% elif resource.change_type.value == 'replace' %}
+            {% set _ = replace_resources.append(resource) %}
+            {% elif resource.change_type.value == 'update' %}
+            {% set _ = update_resources.append(resource) %}
+            {% elif resource.change_type.value == 'create' %}
+            {% set _ = create_resources.append(resource) %}
+            {% endif %}
+            {% endfor %}
+
+            {% set all_grouped_resources = [] %}
+            {% set resource_index = [0] %}
+
+            {% if destroy_resources %}
+            <div class="change-group">
+                <div class="change-group-header destroy-group">
+                    ❌ Resources to Destroy ({{ destroy_resources|length }})
+                </div>
+                {% for resource in destroy_resources %}
+                {% set _ = all_grouped_resources.append((resource, resource_index[0])) %}
+                <div class="resource-card {{ resource.change_type|change_type_class }}"
+                    data-resource-index="{{ resource_index[0] }}">
+                    <div class="resource-header" onclick="toggleResource({{ resource_index[0] }})">
+                        <div class="resource-title">
+                            <span class="resource-icon">{{ resource.change_type|change_type_icon }}</span>
+                            <span class="resource-name">{{ resource.resource_type }}.{{ resource.resource_name }}</span>
+                            <div class="change-type">{{ resource.change_type.value }}</div>
+                            <div class="review-status" id="status-{{ resource_index[0] }}" style="display: none;"></div>
                         </div>
-                        
-                        <div class="resource-content" id="content-{{ loop.index0 }}">
-                            <div class="resource-diff">{{ plan.raw_plan|extract_resource_diff(resource)|colorize_terraform|safe }}</div>
-                            
-                            <div class="review-actions" id="actions-{{ loop.index0 }}">
-                                <button class="btn btn-approve" onclick="markAsReviewed({{ loop.index0 }}, 'approved')">
-                                    ✅ Approve
-                                </button>
-                                <button class="btn btn-needs-changes" onclick="markAsReviewed({{ loop.index0 }}, 'needs-changes')">
-                                    ⚠️ Needs Changes
-                                </button>
-                                <button class="btn btn-next" onclick="goToNext({{ loop.index0 }})">
-                                    ⏭️ Next Change
-                                </button>
-                                <button class="btn btn-clear" onclick="clearReview({{ loop.index0 }})" style="display: none;">
-                                    🔄 Clear Review
-                                </button>
-                            </div>
+                        <div class="expand-indicator">▼</div>
+                    </div>
+
+                    <div class="resource-content" id="content-{{ resource_index[0] }}">
+                        <div class="resource-diff">{{
+                            plan.raw_plan|extract_resource_diff(resource)|colorize_terraform|safe }}</div>
+
+                        <div class="review-actions" id="actions-{{ resource_index[0] }}">
+                            <button class="btn btn-approve"
+                                onclick="markAsReviewed({{ resource_index[0] }}, 'approved')">
+                                ✅ Approve
+                            </button>
+                            <button class="btn btn-needs-changes"
+                                onclick="markAsReviewed({{ resource_index[0] }}, 'needs-changes')">
+                                ⚠️ Needs Changes
+                            </button>
+                            <button class="btn btn-next" onclick="goToNext({{ resource_index[0] }})">
+                                ⏭️ Next Change
+                            </button>
+                            <button class="btn btn-clear" onclick="clearReview({{ resource_index[0] }})"
+                                style="display: none;">
+                                🔄 Clear Review
+                            </button>
                         </div>
                     </div>
+                </div>
+                {% set _ = resource_index.append(resource_index.pop() + 1) %}
                 {% endfor %}
             </div>
-            
-            <!-- Full Plan Text Section -->
-            <div class="full-plan-section">
-                <div class="full-plan-header" onclick="toggleFullPlan()">
-                    <div>
-                        <h3>📄 Full Terraform Plan Output</h3>
-                        <p style="font-size: 0.9em; color: #666; margin-top: 5px;">Click to view the complete terraform plan output for reference</p>
+            {% endif %}
+
+            {% if replace_resources %}
+            <div class="change-group">
+                <div class="change-group-header replace-group">
+                    🔄 Resources to Replace ({{ replace_resources|length }})
+                </div>
+                {% for resource in replace_resources %}
+                {% set _ = all_grouped_resources.append((resource, resource_index[0])) %}
+                <div class="resource-card {{ resource.change_type|change_type_class }}"
+                    data-resource-index="{{ resource_index[0] }}">
+                    <div class="resource-header" onclick="toggleResource({{ resource_index[0] }})">
+                        <div class="resource-title">
+                            <span class="resource-icon">{{ resource.change_type|change_type_icon }}</span>
+                            <span class="resource-name">{{ resource.resource_type }}.{{ resource.resource_name }}</span>
+                            <div class="change-type">{{ resource.change_type.value }}</div>
+                            <div class="review-status" id="status-{{ resource_index[0] }}" style="display: none;"></div>
+                        </div>
+                        <div class="expand-indicator">▼</div>
                     </div>
-                    <div class="expand-indicator" id="fullPlanIndicator">▼</div>
+
+                    <div class="resource-content" id="content-{{ resource_index[0] }}">
+                        <div class="resource-diff">{{
+                            plan.raw_plan|extract_resource_diff(resource)|colorize_terraform|safe }}</div>
+
+                        <div class="review-actions" id="actions-{{ resource_index[0] }}">
+                            <button class="btn btn-approve"
+                                onclick="markAsReviewed({{ resource_index[0] }}, 'approved')">
+                                ✅ Approve
+                            </button>
+                            <button class="btn btn-needs-changes"
+                                onclick="markAsReviewed({{ resource_index[0] }}, 'needs-changes')">
+                                ⚠️ Needs Changes
+                            </button>
+                            <button class="btn btn-next" onclick="goToNext({{ resource_index[0] }})">
+                                ⏭️ Next Change
+                            </button>
+                            <button class="btn btn-clear" onclick="clearReview({{ resource_index[0] }})"
+                                style="display: none;">
+                                🔄 Clear Review
+                            </button>
+                        </div>
+                    </div>
                 </div>
-                
-                <div class="full-plan-content" id="fullPlanContent">
-                    <div class="full-plan-text">{{ plan.raw_plan|colorize_terraform|safe }}</div>
-                </div>
+                {% set _ = resource_index.append(resource_index.pop() + 1) %}
+                {% endfor %}
             </div>
+            {% endif %}
+
+            {% if update_resources %}
+            <div class="change-group">
+                <div class="change-group-header update-group">
+                    📝 Resources to Update ({{ update_resources|length }})
+                </div>
+                {% for resource in update_resources %}
+                {% set _ = all_grouped_resources.append((resource, resource_index[0])) %}
+                <div class="resource-card {{ resource.change_type|change_type_class }}"
+                    data-resource-index="{{ resource_index[0] }}">
+                    <div class="resource-header" onclick="toggleResource({{ resource_index[0] }})">
+                        <div class="resource-title">
+                            <span class="resource-icon">{{ resource.change_type|change_type_icon }}</span>
+                            <span class="resource-name">{{ resource.resource_type }}.{{ resource.resource_name }}</span>
+                            <div class="change-type">{{ resource.change_type.value }}</div>
+                            <div class="review-status" id="status-{{ resource_index[0] }}" style="display: none;"></div>
+                        </div>
+                        <div class="expand-indicator">▼</div>
+                    </div>
+
+                    <div class="resource-content" id="content-{{ resource_index[0] }}">
+                        <div class="resource-diff">{{
+                            plan.raw_plan|extract_resource_diff(resource)|colorize_terraform|safe }}</div>
+
+                        <div class="review-actions" id="actions-{{ resource_index[0] }}">
+                            <button class="btn btn-approve"
+                                onclick="markAsReviewed({{ resource_index[0] }}, 'approved')">
+                                ✅ Approve
+                            </button>
+                            <button class="btn btn-needs-changes"
+                                onclick="markAsReviewed({{ resource_index[0] }}, 'needs-changes')">
+                                ⚠️ Needs Changes
+                            </button>
+                            <button class="btn btn-next" onclick="goToNext({{ resource_index[0] }})">
+                                ⏭️ Next Change
+                            </button>
+                            <button class="btn btn-clear" onclick="clearReview({{ resource_index[0] }})"
+                                style="display: none;">
+                                🔄 Clear Review
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                {% set _ = resource_index.append(resource_index.pop() + 1) %}
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% if create_resources %}
+            <div class="change-group">
+                <div class="change-group-header create-group">
+                    ➕ Resources to Create ({{ create_resources|length }})
+                </div>
+                {% for resource in create_resources %}
+                {% set _ = all_grouped_resources.append((resource, resource_index[0])) %}
+                <div class="resource-card {{ resource.change_type|change_type_class }}"
+                    data-resource-index="{{ resource_index[0] }}">
+                    <div class="resource-header" onclick="toggleResource({{ resource_index[0] }})">
+                        <div class="resource-title">
+                            <span class="resource-icon">{{ resource.change_type|change_type_icon }}</span>
+                            <span class="resource-name">{{ resource.resource_type }}.{{ resource.resource_name }}</span>
+                            <div class="change-type">{{ resource.change_type.value }}</div>
+                            <div class="review-status" id="status-{{ resource_index[0] }}" style="display: none;"></div>
+                        </div>
+                        <div class="expand-indicator">▼</div>
+                    </div>
+
+                    <div class="resource-content" id="content-{{ resource_index[0] }}">
+                        <div class="resource-diff">{{
+                            plan.raw_plan|extract_resource_diff(resource)|colorize_terraform|safe }}</div>
+
+                        <div class="review-actions" id="actions-{{ resource_index[0] }}">
+                            <button class="btn btn-approve"
+                                onclick="markAsReviewed({{ resource_index[0] }}, 'approved')">
+                                ✅ Approve
+                            </button>
+                            <button class="btn btn-needs-changes"
+                                onclick="markAsReviewed({{ resource_index[0] }}, 'needs-changes')">
+                                ⚠️ Needs Changes
+                            </button>
+                            <button class="btn btn-next" onclick="goToNext({{ resource_index[0] }})">
+                                ⏭️ Next Change
+                            </button>
+                            <button class="btn btn-clear" onclick="clearReview({{ resource_index[0] }})"
+                                style="display: none;">
+                                🔄 Clear Review
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                {% set _ = resource_index.append(resource_index.pop() + 1) %}
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Full Plan Text Section -->
+        <div class="full-plan-section">
+            <div class="full-plan-header" onclick="toggleFullPlan()">
+                <div>
+                    <h3>📄 Full Terraform Plan Output</h3>
+                    <p style="font-size: 0.9em; color: #666; margin-top: 5px;">Click to view the complete terraform plan
+                        output for reference</p>
+                </div>
+                <div class="expand-indicator" id="fullPlanIndicator">▼</div>
+            </div>
+
+            <div class="full-plan-content" id="fullPlanContent">
+                <div class="full-plan-text">{{ plan.raw_plan|colorize_terraform|safe }}</div>
+            </div>
+        </div>
         {% endif %}
     </div>
 
     <script>
         // JavaScript for interactivity and persistent state
         let reviewedResources = new Map(); // Track review status
-        let totalResources = {{ plan.resource_changes|length }};
+        let totalResources = {{ plan.resource_changes| length }};
         let planId = '';
         let planContent = `{{ plan.raw_plan|escapejs }}`;
 
@@ -624,7 +915,7 @@
                 const approveBtn = actionsContainer.children[0];
                 const needsChangesBtn = actionsContainer.children[1];
                 const clearBtn = actionsContainer.children[3];
-                
+
                 // Update status display
                 statusElement.style.display = 'inline-block';
                 if (status === 'approved') {
@@ -634,13 +925,13 @@
                     statusElement.textContent = '⚠️ Needs Changes';
                     statusElement.className = 'review-status status-needs-changes';
                 }
-                
+
                 // Show clear button and hide approve/needs-changes buttons
                 approveBtn.style.display = 'none';
                 needsChangesBtn.style.display = 'none';
                 clearBtn.style.display = 'inline-block';
             });
-            
+
             updateProgress();
         }
 
@@ -649,12 +940,12 @@
             if (confirm(`Clear all review states for this plan (${planId})?`)) {
                 localStorage.removeItem(`tfreview_${planId}`);
                 reviewedResources.clear();
-                
+
                 // Reset all UI elements
                 for (let i = 0; i < totalResources; i++) {
                     clearReview(i);
                 }
-                
+
                 updateProgress();
             }
         }
@@ -674,7 +965,7 @@
         function toggleResource(index) {
             const content = document.getElementById(`content-${index}`);
             const header = content.previousElementSibling;
-            
+
             if (content.classList.contains('expanded')) {
                 content.classList.remove('expanded');
                 header.classList.remove('expanded');
@@ -686,14 +977,14 @@
 
         function markAsReviewed(index, status) {
             reviewedResources.set(index, status);
-            
+
             const statusElement = document.getElementById(`status-${index}`);
             const actionsContainer = document.getElementById(`actions-${index}`);
             const approveBtn = actionsContainer.children[0];
             const needsChangesBtn = actionsContainer.children[1];
             const nextBtn = actionsContainer.children[2];
             const clearBtn = actionsContainer.children[3];
-            
+
             // Update status display
             statusElement.style.display = 'inline-block';
             if (status === 'approved') {
@@ -703,47 +994,53 @@
                 statusElement.textContent = '⚠️ Needs Changes';
                 statusElement.className = 'review-status status-needs-changes';
             }
-            
+
             // Show clear button and hide approve/needs-changes buttons
             approveBtn.style.display = 'none';
             needsChangesBtn.style.display = 'none';
             clearBtn.style.display = 'inline-block';
-            
+
             updateProgress();
             saveReviewState(); // Save to localStorage
-            
-            // If approved, auto-collapse and move to next
+
+            // If approved, improved sequence: collapse slowly → scroll → expand
             if (status === 'approved') {
                 setTimeout(() => {
-                    // Collapse current section
+                    // Start collapse with animation
                     const content = document.getElementById(`content-${index}`);
                     const header = content.previousElementSibling;
-                    content.classList.remove('expanded');
+
+                    content.classList.add('collapsing');
                     header.classList.remove('expanded');
-                    
-                    // Move to next unreviewed resource
-                    goToNextUnreviewed();
-                }, 1000); // 1 second delay to show the approval
+
+                    // After collapse animation, scroll to next
+                    setTimeout(() => {
+                        content.classList.remove('expanded', 'collapsing');
+
+                        // Find and navigate to next unreviewed resource
+                        goToNextUnreviewed();
+                    }, 800); // Wait for collapse animation
+                }, 500); // Initial delay to show approval
             }
         }
 
         function clearReview(index) {
             reviewedResources.delete(index);
-            
+
             const statusElement = document.getElementById(`status-${index}`);
             const actionsContainer = document.getElementById(`actions-${index}`);
             const approveBtn = actionsContainer.children[0];
             const needsChangesBtn = actionsContainer.children[1];
             const clearBtn = actionsContainer.children[3];
-            
+
             // Hide status
             statusElement.style.display = 'none';
-            
+
             // Show approve/needs-changes buttons and hide clear button
             approveBtn.style.display = 'inline-block';
             needsChangesBtn.style.display = 'inline-block';
             clearBtn.style.display = 'none';
-            
+
             updateProgress();
             saveReviewState(); // Save to localStorage
         }
@@ -774,34 +1071,36 @@
             const card = document.querySelector(`[data-resource-index="${index}"]`);
             const content = document.getElementById(`content-${index}`);
             const header = content.previousElementSibling;
-            
-            // Scroll to card
+
+            // Scroll to card with smooth animation
             card.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            
-            // Expand card
+
+            // Expand card after scroll
             setTimeout(() => {
                 content.classList.add('expanded');
                 header.classList.add('expanded');
-            }, 500);
+            }, 600); // Wait for scroll to complete
         }
 
         function updateProgress() {
-            const progressFill = document.getElementById('progressFill');
-            const progressText = document.getElementById('progressText');
-            
-            const percentage = (reviewedResources.size / totalResources) * 100;
+            const progressFill = document.getElementById('floatingProgressFill');
+            const progressStats = document.getElementById('floatingProgressStats');
+            const progressPercent = document.getElementById('floatingProgressPercent');
+
+            const percentage = totalResources > 0 ? (reviewedResources.size / totalResources) * 100 : 0;
             progressFill.style.width = `${percentage}%`;
-            progressText.textContent = `${reviewedResources.size} of ${totalResources} resources reviewed`;
-            
-            if (reviewedResources.size === totalResources) {
-                progressText.innerHTML += ' 🎉 <strong>All resources reviewed!</strong>';
+            progressStats.textContent = `${reviewedResources.size} of ${totalResources} reviewed`;
+            progressPercent.textContent = `${Math.round(percentage)}%`;
+
+            if (reviewedResources.size === totalResources && totalResources > 0) {
+                progressStats.innerHTML = `🎉 All ${totalResources} resources reviewed!`;
             }
         }
 
         function toggleFullPlan() {
             const content = document.getElementById('fullPlanContent');
             const indicator = document.getElementById('fullPlanIndicator');
-            
+
             if (content.classList.contains('expanded')) {
                 content.classList.remove('expanded');
                 indicator.style.transform = 'rotate(0deg)';
@@ -812,7 +1111,7 @@
         }
 
         // Keyboard shortcuts
-        document.addEventListener('keydown', function(e) {
+        document.addEventListener('keydown', function (e) {
             // Press 'n' to go to next unreviewed resource
             if (e.key === 'n' || e.key === 'N') {
                 goToNextUnreviewed();
@@ -830,11 +1129,11 @@
         });
 
         // Initialize on page load
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             // Generate plan ID from content hash
             planId = generatePlanHash(planContent);
             document.getElementById('planId').textContent = planId;
-            
+
             // Try to load existing review state
             const wasRestored = loadReviewState();
             if (wasRestored) {
@@ -847,10 +1146,13 @@
                 document.getElementById('stateIndicator').className = 'state-indicator state-new';
                 console.log(`Starting new review for plan ${planId}`);
             }
-            
+
             // Debug: log stored plans
             console.log('Stored plan reviews:', getStoredPlans());
-            
+
+            // Initialize progress
+            updateProgress();
+
             // Initialize - expand first unreviewed resource
             if (totalResources > 0) {
                 let firstUnreviewed = 0;
@@ -866,4 +1168,5 @@
         });
     </script>
 </body>
+
 </html>
