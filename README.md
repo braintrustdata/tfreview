@@ -1,6 +1,6 @@
 # TFReview 🔍
 
-A modern, interactive tool for reviewing Terraform plans in a beautiful HTML interface.
+A modern, interactive tool for reviewing Terraform plans in a nice, easy to read HTML interface.
 
 ## Features ✨
 
@@ -8,10 +8,6 @@ A modern, interactive tool for reviewing Terraform plans in a beautiful HTML int
 - **Collapsible Resource Views**: Organize changes with expandable sections for each resource
 - **Review Tracking**: Mark resources as approved or needing changes with progress tracking
 - **Syntax Highlighting**: Color-coded terraform diff output for easy reading
-- **Navigation Controls**: Keyboard shortcuts and buttons to navigate between changes
-- **Responsive Design**: Works great on desktop and mobile devices
-- **Multiple Input Methods**: Read from files or stdin
-- **JSON Export**: Export parsed plan data as JSON for integration with other tools
 
 ## Screenshots
 ![CleanShot 2025-06-19 at 14 41 29@2x](https://github.com/user-attachments/assets/7a24b08c-6d45-4d48-a43c-975ea80bccea)
