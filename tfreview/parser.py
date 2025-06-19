@@ -247,20 +247,36 @@ class TerraformPlanParser:
     
     def _parse_resource_address(self, address: str) -> Tuple[str, str]:
         """Parse resource address to extract type and name."""
-        # Remove module prefix if present
+        original_address = address
+        
+        # Handle indexed resources by removing just the index brackets, not the content after
+        # Transform: module.a[0].aws_instance.example[1] -> module.a.aws_instance.example
+        import re
+        address = re.sub(r'\[\d+\]', '', address)
+        
+        # For module resources, extract the actual resource type and name
         if address.startswith('module.'):
             parts = address.split('.')
-            # Find the actual resource part (not module parts)
-            for i, part in enumerate(parts):
-                if not part.startswith('module') and '.' in '.'.join(parts[i:]):
-                    address = '.'.join(parts[i:])
-                    break
+            
+            # Look for the actual resource type (like aws_autoscaling_group, aws_launch_template)
+            # These typically start with a provider prefix (aws_, google_, azurerm_, etc.)
+            for i in range(len(parts)):
+                part = parts[i]
+                # Check if this looks like a resource type (provider_resourcetype pattern)
+                if ('_' in part and 
+                    not part.startswith('module') and 
+                    i < len(parts) - 1):  # Must have a name after it
+                    resource_type = part
+                    resource_name = parts[i + 1]
+                    return resource_type, resource_name
+            
+            # Fallback: if no standard resource type found, use the last two parts
+            if len(parts) >= 2:
+                return parts[-2], parts[-1]
+            else:
+                return parts[-1], ""
         
-        # Handle indexed resources
-        if '[' in address:
-            address = address.split('[')[0]
-        
-        # Split into type and name
+        # Regular resource (not in module)
         if '.' in address:
             resource_type, resource_name = address.split('.', 1)
         else:
