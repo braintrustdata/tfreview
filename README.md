@@ -14,7 +14,7 @@ A modern, interactive tool for reviewing Terraform plans in a beautiful HTML int
 - **JSON Export**: Export parsed plan data as JSON for integration with other tools
 
 ## Screenshot
-![CleanShot 2025-06-19 at 14 31 45@2x](https://github.com/user-attachments/assets/d370da12-3e68-4d8a-b4ae-6a4d6a7b9636)
+![CleanShot 2025-06-19 at 14 37 22](https://github.com/user-attachments/assets/214c19d6-f1ad-493a-83ff-490e3b66a3cc)
 
 
 ## Installation 📦
