@@ -133,6 +133,7 @@
             display: flex;
             align-items: center;
             gap: 10px;
+            flex-wrap: wrap;
         }
 
         .resource-icon {
@@ -234,6 +235,7 @@
             display: flex;
             gap: 10px;
             margin-top: 15px;
+            flex-wrap: wrap;
         }
 
         .btn {
@@ -270,6 +272,15 @@
 
         .btn-next:hover {
             background: #0056b3;
+        }
+
+        .btn-clear {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-clear:hover {
+            background: #545b62;
         }
 
         .btn.reviewed {
@@ -323,6 +334,52 @@
             text-align: center;
             margin-top: 10px;
             font-weight: bold;
+        }
+
+        .full-plan-section {
+            margin-top: 40px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .full-plan-header {
+            padding: 20px;
+            cursor: pointer;
+            background: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background-color 0.2s;
+        }
+
+        .full-plan-header:hover {
+            background-color: #e9ecef;
+        }
+
+        .full-plan-content {
+            display: none;
+            padding: 20px;
+        }
+
+        .full-plan-content.expanded {
+            display: block;
+        }
+
+        .full-plan-text {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 20px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85em;
+            line-height: 1.4;
+            white-space: pre-wrap;
+            overflow-x: auto;
+            max-height: 600px;
+            overflow-y: auto;
         }
 
         @media (max-width: 768px) {
@@ -404,7 +461,7 @@
                         <div class="resource-content" id="content-{{ loop.index0 }}">
                             <div class="resource-diff">{{ plan.raw_plan|extract_resource_diff(resource)|colorize_terraform|safe }}</div>
                             
-                            <div class="review-actions">
+                            <div class="review-actions" id="actions-{{ loop.index0 }}">
                                 <button class="btn btn-approve" onclick="markAsReviewed({{ loop.index0 }}, 'approved')">
                                     ✅ Approve
                                 </button>
@@ -414,17 +471,35 @@
                                 <button class="btn btn-next" onclick="goToNext({{ loop.index0 }})">
                                     ⏭️ Next Change
                                 </button>
+                                <button class="btn btn-clear" onclick="clearReview({{ loop.index0 }})" style="display: none;">
+                                    🔄 Clear Review
+                                </button>
                             </div>
                         </div>
                     </div>
                 {% endfor %}
+            </div>
+            
+            <!-- Full Plan Text Section -->
+            <div class="full-plan-section">
+                <div class="full-plan-header" onclick="toggleFullPlan()">
+                    <div>
+                        <h3>📄 Full Terraform Plan Output</h3>
+                        <p style="font-size: 0.9em; color: #666; margin-top: 5px;">Click to view the complete terraform plan output for reference</p>
+                    </div>
+                    <div class="expand-indicator" id="fullPlanIndicator">▼</div>
+                </div>
+                
+                <div class="full-plan-content" id="fullPlanContent">
+                    <div class="full-plan-text">{{ plan.raw_plan|colorize_terraform|safe }}</div>
+                </div>
             </div>
         {% endif %}
     </div>
 
     <script>
         // JavaScript for interactivity
-        let reviewedResources = new Set();
+        let reviewedResources = new Map(); // Changed to Map to track review status
         let totalResources = {{ plan.resource_changes|length }};
 
         function toggleResource(index) {
@@ -441,10 +516,14 @@
         }
 
         function markAsReviewed(index, status) {
-            reviewedResources.add(index);
+            reviewedResources.set(index, status);
             
             const statusElement = document.getElementById(`status-${index}`);
-            const buttons = document.querySelector(`[data-resource-index="${index}"] .review-actions`).children;
+            const actionsContainer = document.getElementById(`actions-${index}`);
+            const approveBtn = actionsContainer.children[0];
+            const needsChangesBtn = actionsContainer.children[1];
+            const nextBtn = actionsContainer.children[2];
+            const clearBtn = actionsContainer.children[3];
             
             // Update status display
             statusElement.style.display = 'inline-block';
@@ -456,11 +535,44 @@
                 statusElement.className = 'review-status status-needs-changes';
             }
             
-            // Disable review buttons
-            buttons[0].classList.add('reviewed');
-            buttons[1].classList.add('reviewed');
-            buttons[0].disabled = true;
-            buttons[1].disabled = true;
+            // Show clear button and hide approve/needs-changes buttons
+            approveBtn.style.display = 'none';
+            needsChangesBtn.style.display = 'none';
+            clearBtn.style.display = 'inline-block';
+            
+            updateProgress();
+            
+            // If approved, auto-collapse and move to next
+            if (status === 'approved') {
+                setTimeout(() => {
+                    // Collapse current section
+                    const content = document.getElementById(`content-${index}`);
+                    const header = content.previousElementSibling;
+                    content.classList.remove('expanded');
+                    header.classList.remove('expanded');
+                    
+                    // Move to next unreviewed resource
+                    goToNextUnreviewed();
+                }, 1000); // 1 second delay to show the approval
+            }
+        }
+
+        function clearReview(index) {
+            reviewedResources.delete(index);
+            
+            const statusElement = document.getElementById(`status-${index}`);
+            const actionsContainer = document.getElementById(`actions-${index}`);
+            const approveBtn = actionsContainer.children[0];
+            const needsChangesBtn = actionsContainer.children[1];
+            const clearBtn = actionsContainer.children[3];
+            
+            // Hide status
+            statusElement.style.display = 'none';
+            
+            // Show approve/needs-changes buttons and hide clear button
+            approveBtn.style.display = 'inline-block';
+            needsChangesBtn.style.display = 'inline-block';
+            clearBtn.style.display = 'none';
             
             updateProgress();
         }
@@ -468,21 +580,38 @@
         function goToNext(currentIndex) {
             const nextIndex = currentIndex + 1;
             if (nextIndex < totalResources) {
-                const nextCard = document.querySelector(`[data-resource-index="${nextIndex}"]`);
-                const nextContent = document.getElementById(`content-${nextIndex}`);
-                const nextHeader = nextContent.previousElementSibling;
-                
-                // Scroll to next card
-                nextCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                
-                // Expand next card
-                setTimeout(() => {
-                    nextContent.classList.add('expanded');
-                    nextHeader.classList.add('expanded');
-                }, 500);
+                navigateToResource(nextIndex);
             } else {
                 alert('You have reached the last change!');
             }
+        }
+
+        function goToNextUnreviewed() {
+            for (let i = 0; i < totalResources; i++) {
+                if (!reviewedResources.has(i)) {
+                    navigateToResource(i);
+                    return;
+                }
+            }
+            // If all reviewed, show completion message
+            if (reviewedResources.size === totalResources) {
+                alert('🎉 All resources have been reviewed!');
+            }
+        }
+
+        function navigateToResource(index) {
+            const card = document.querySelector(`[data-resource-index="${index}"]`);
+            const content = document.getElementById(`content-${index}`);
+            const header = content.previousElementSibling;
+            
+            // Scroll to card
+            card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            
+            // Expand card
+            setTimeout(() => {
+                content.classList.add('expanded');
+                header.classList.add('expanded');
+            }, 500);
         }
 
         function updateProgress() {
@@ -498,22 +627,28 @@
             }
         }
 
+        function toggleFullPlan() {
+            const content = document.getElementById('fullPlanContent');
+            const indicator = document.getElementById('fullPlanIndicator');
+            
+            if (content.classList.contains('expanded')) {
+                content.classList.remove('expanded');
+                indicator.style.transform = 'rotate(0deg)';
+            } else {
+                content.classList.add('expanded');
+                indicator.style.transform = 'rotate(180deg)';
+            }
+        }
+
         // Keyboard shortcuts
         document.addEventListener('keydown', function(e) {
             // Press 'n' to go to next unreviewed resource
             if (e.key === 'n' || e.key === 'N') {
-                for (let i = 0; i < totalResources; i++) {
-                    if (!reviewedResources.has(i)) {
-                        const card = document.querySelector(`[data-resource-index="${i}"]`);
-                        card.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                        
-                        const content = document.getElementById(`content-${i}`);
-                        const header = content.previousElementSibling;
-                        content.classList.add('expanded');
-                        header.classList.add('expanded');
-                        break;
-                    }
-                }
+                goToNextUnreviewed();
+            }
+            // Press 'f' to toggle full plan
+            if (e.key === 'f' || e.key === 'F') {
+                toggleFullPlan();
             }
         });
 
