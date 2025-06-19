@@ -39,6 +39,42 @@
             font-size: 2.5em;
         }
 
+        .plan-info {
+            background: #f8f9fa;
+            padding: 10px 15px;
+            border-radius: 6px;
+            margin-top: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            color: #666;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .plan-id {
+            font-weight: bold;
+        }
+
+        .state-indicator {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            font-weight: bold;
+        }
+
+        .state-new {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .state-restored {
+            background: #e8f5e8;
+            color: #388e3c;
+        }
+
         .summary {
             display: flex;
             gap: 20px;
@@ -283,6 +319,17 @@
             background: #545b62;
         }
 
+        .btn-clear-all {
+            background: #ffc107;
+            color: #212529;
+            font-size: 0.8em;
+            padding: 6px 12px;
+        }
+
+        .btn-clear-all:hover {
+            background: #e0a800;
+        }
+
         .btn.reviewed {
             background: #6c757d;
             cursor: default;
@@ -313,6 +360,13 @@
             padding: 20px;
             border-radius: 8px;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .progress-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
         }
 
         .progress-bar {
@@ -400,6 +454,11 @@
             .review-actions {
                 flex-direction: column;
             }
+
+            .plan-info {
+                flex-direction: column;
+                align-items: flex-start;
+            }
         }
     </style>
 </head>
@@ -407,6 +466,15 @@
     <div class="container">
         <div class="header">
             <h1>🔍 Terraform Plan Review</h1>
+            
+            <div class="plan-info">
+                <div>
+                    <span class="plan-id">Plan ID: <span id="planId">Loading...</span></span>
+                </div>
+                <div>
+                    <span class="state-indicator" id="stateIndicator">New Review</span>
+                </div>
+            </div>
             
             {% if plan.has_changes %}
                 <div class="summary">
@@ -437,11 +505,16 @@
         
         {% if plan.has_changes %}
             <div class="progress">
+                <div class="progress-header">
+                    <div class="progress-text" id="progressText">
+                        0 of {{ plan.resource_changes|length }} resources reviewed
+                    </div>
+                    <button class="btn btn-clear-all" onclick="clearAllReviews()" title="Clear all review states for this plan">
+                        🗑️ Clear All Reviews
+                    </button>
+                </div>
                 <div class="progress-bar">
                     <div class="progress-fill" id="progressFill"></div>
-                </div>
-                <div class="progress-text" id="progressText">
-                    0 of {{ plan.resource_changes|length }} resources reviewed
                 </div>
             </div>
             
@@ -498,9 +571,105 @@
     </div>
 
     <script>
-        // JavaScript for interactivity
-        let reviewedResources = new Map(); // Changed to Map to track review status
+        // JavaScript for interactivity and persistent state
+        let reviewedResources = new Map(); // Track review status
         let totalResources = {{ plan.resource_changes|length }};
+        let planId = '';
+        let planContent = `{{ plan.raw_plan|escapejs }}`;
+
+        // Generate a simple hash for the plan content
+        function generatePlanHash(content) {
+            let hash = 0;
+            for (let i = 0; i < content.length; i++) {
+                const char = content.charCodeAt(i);
+                hash = ((hash << 5) - hash) + char;
+                hash = hash & hash; // Convert to 32-bit integer
+            }
+            return Math.abs(hash).toString(16).toUpperCase().substring(0, 8);
+        }
+
+        // Save review state to localStorage
+        function saveReviewState() {
+            const state = {
+                reviewedResources: Object.fromEntries(reviewedResources),
+                timestamp: Date.now(),
+                totalResources: totalResources
+            };
+            localStorage.setItem(`tfreview_${planId}`, JSON.stringify(state));
+        }
+
+        // Load review state from localStorage
+        function loadReviewState() {
+            const saved = localStorage.getItem(`tfreview_${planId}`);
+            if (saved) {
+                try {
+                    const state = JSON.parse(saved);
+                    if (state.totalResources === totalResources) {
+                        reviewedResources = new Map(Object.entries(state.reviewedResources));
+                        return true;
+                    }
+                } catch (e) {
+                    console.warn('Failed to load review state:', e);
+                }
+            }
+            return false;
+        }
+
+        // Restore UI state from loaded data
+        function restoreUIState() {
+            reviewedResources.forEach((status, indexStr) => {
+                const index = parseInt(indexStr);
+                const statusElement = document.getElementById(`status-${index}`);
+                const actionsContainer = document.getElementById(`actions-${index}`);
+                const approveBtn = actionsContainer.children[0];
+                const needsChangesBtn = actionsContainer.children[1];
+                const clearBtn = actionsContainer.children[3];
+                
+                // Update status display
+                statusElement.style.display = 'inline-block';
+                if (status === 'approved') {
+                    statusElement.textContent = '✅ Approved';
+                    statusElement.className = 'review-status status-approved';
+                } else if (status === 'needs-changes') {
+                    statusElement.textContent = '⚠️ Needs Changes';
+                    statusElement.className = 'review-status status-needs-changes';
+                }
+                
+                // Show clear button and hide approve/needs-changes buttons
+                approveBtn.style.display = 'none';
+                needsChangesBtn.style.display = 'none';
+                clearBtn.style.display = 'inline-block';
+            });
+            
+            updateProgress();
+        }
+
+        // Clear all reviews for this plan
+        function clearAllReviews() {
+            if (confirm(`Clear all review states for this plan (${planId})?`)) {
+                localStorage.removeItem(`tfreview_${planId}`);
+                reviewedResources.clear();
+                
+                // Reset all UI elements
+                for (let i = 0; i < totalResources; i++) {
+                    clearReview(i);
+                }
+                
+                updateProgress();
+            }
+        }
+
+        // Get list of all stored plan IDs for debugging
+        function getStoredPlans() {
+            const plans = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && key.startsWith('tfreview_')) {
+                    plans.push(key.substring(9)); // Remove 'tfreview_' prefix
+                }
+            }
+            return plans;
+        }
 
         function toggleResource(index) {
             const content = document.getElementById(`content-${index}`);
@@ -541,6 +710,7 @@
             clearBtn.style.display = 'inline-block';
             
             updateProgress();
+            saveReviewState(); // Save to localStorage
             
             // If approved, auto-collapse and move to next
             if (status === 'approved') {
@@ -575,6 +745,7 @@
             clearBtn.style.display = 'none';
             
             updateProgress();
+            saveReviewState(); // Save to localStorage
         }
 
         function goToNext(currentIndex) {
@@ -650,12 +821,49 @@
             if (e.key === 'f' || e.key === 'F') {
                 toggleFullPlan();
             }
+            // Press 'c' to clear all reviews (with confirmation)
+            if (e.key === 'c' || e.key === 'C') {
+                if (e.ctrlKey || e.metaKey) { // Require Ctrl/Cmd modifier
+                    clearAllReviews();
+                }
+            }
         });
 
-        // Initialize - expand first resource if any
-        if (totalResources > 0) {
-            toggleResource(0);
-        }
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            // Generate plan ID from content hash
+            planId = generatePlanHash(planContent);
+            document.getElementById('planId').textContent = planId;
+            
+            // Try to load existing review state
+            const wasRestored = loadReviewState();
+            if (wasRestored) {
+                document.getElementById('stateIndicator').textContent = 'State Restored';
+                document.getElementById('stateIndicator').className = 'state-indicator state-restored';
+                restoreUIState();
+                console.log(`Review state restored for plan ${planId}`);
+            } else {
+                document.getElementById('stateIndicator').textContent = 'New Review';
+                document.getElementById('stateIndicator').className = 'state-indicator state-new';
+                console.log(`Starting new review for plan ${planId}`);
+            }
+            
+            // Debug: log stored plans
+            console.log('Stored plan reviews:', getStoredPlans());
+            
+            // Initialize - expand first unreviewed resource
+            if (totalResources > 0) {
+                let firstUnreviewed = 0;
+                while (firstUnreviewed < totalResources && reviewedResources.has(firstUnreviewed)) {
+                    firstUnreviewed++;
+                }
+                if (firstUnreviewed < totalResources) {
+                    toggleResource(firstUnreviewed);
+                } else {
+                    toggleResource(0); // If all reviewed, show first one
+                }
+            }
+        });
     </script>
 </body>
 </html>

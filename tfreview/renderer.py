@@ -30,6 +30,7 @@ class HTMLRenderer:
         self.env.filters['change_type_class'] = self._get_change_type_class
         self.env.filters['change_type_icon'] = self._get_change_type_icon
         self.env.filters['extract_resource_diff'] = self._extract_resource_diff
+        self.env.filters['escapejs'] = self._escape_js
     
     def render(self, plan_summary: PlanSummary, output_file: Optional[str] = None) -> str:
         """Render the plan summary as HTML."""
@@ -146,3 +147,14 @@ class HTMLRenderer:
         if js_file.exists():
             return js_file.read_text(encoding='utf-8')
         return ""
+
+    def _escape_js(self, text: str) -> str:
+        """Escape JavaScript content for HTML."""
+        return (text.replace('\\', '\\\\')
+                   .replace('\n', '\\n')
+                   .replace('\r', '\\r')
+                   .replace('\t', '\\t')
+                   .replace('"', '\\"')
+                   .replace("'", "\\'")
+                   .replace('`', '\\`')
+                   .replace('</', '<\\/'))
