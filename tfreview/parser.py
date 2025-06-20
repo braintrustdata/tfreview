@@ -144,13 +144,49 @@ class TerraformPlanParser:
         ]
         
     def _detect_errors(self, plan_text: str) -> Tuple[bool, List[str]]:
-        """Detect if the plan text contains errors."""
+        """Detect if the plan text contains errors or is empty/invalid."""
         error_messages = []
         has_errors = False
         
-        lines = plan_text.split('\n')
+        # Check for empty or nearly empty input
+        stripped_text = plan_text.strip()
+        if not stripped_text:
+            has_errors = True
+            error_messages.append("Empty terraform plan output")
+            return has_errors, error_messages
         
-        # Check for error patterns
+        # Check for very minimal content (less than 50 characters likely means something went wrong)
+        if len(stripped_text) < 50:
+            has_errors = True
+            error_messages.append("Terraform plan output too short - possibly failed")
+            return has_errors, error_messages
+        
+        lines = [line.strip() for line in plan_text.split('\n') if line.strip()]
+        
+        # Check for insufficient content (fewer than 3 meaningful lines suggests failure)
+        if len(lines) < 3:
+            has_errors = True
+            error_messages.append("Insufficient terraform plan content")
+            return has_errors, error_messages
+        
+        # Check if this looks like a valid terraform plan by looking for expected patterns
+        has_terraform_indicators = any([
+            'terraform' in plan_text.lower(),
+            'plan:' in plan_text.lower(),
+            'no changes' in plan_text.lower(),
+            'will be created' in plan_text,
+            'will be destroyed' in plan_text,
+            'will be updated' in plan_text,
+            'will be replaced' in plan_text,
+            'execution plan' in plan_text.lower(),
+        ])
+        
+        if not has_terraform_indicators:
+            has_errors = True
+            error_messages.append("Input does not appear to be valid terraform plan output")
+            return has_errors, error_messages
+        
+        # Check for explicit error patterns (keeping some of the original logic for actual error messages)
         for pattern in self.error_patterns:
             matches = pattern.findall(plan_text)
             if matches:
@@ -183,6 +219,15 @@ class TerraformPlanParser:
                     error_msg = line.replace('│', '').strip()
                     if error_msg and error_msg not in error_messages:
                         error_messages.append(error_msg)
+        
+        # If no errors found so far, but we have a very short plan that doesn't match expected patterns
+        if not has_errors and len(stripped_text) < 200:
+            # Check if it's just a simple "no changes" message
+            if not (self.no_changes_pattern.search(plan_text) or 
+                   'no changes' in plan_text.lower() or
+                   'up-to-date' in plan_text.lower()):
+                has_errors = True
+                error_messages.append("Terraform plan output appears incomplete or invalid")
         
         # Remove duplicates while preserving order
         unique_errors = []

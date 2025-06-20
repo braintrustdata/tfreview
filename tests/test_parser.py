@@ -215,16 +215,19 @@ class TestTerraformPlanParser:
     
     def test_edge_cases(self):
         """Test edge cases and error handling."""
-        # Empty plan
+        # Empty plan - should now be detected as an error
         empty_result = self.parser.parse("")
+        assert empty_result.has_errors
         assert not empty_result.has_changes
         
-        # Plan with only whitespace
+        # Plan with only whitespace - should now be detected as an error
         whitespace_result = self.parser.parse("   \n\n   ")
+        assert whitespace_result.has_errors
         assert not whitespace_result.has_changes
         
-        # Plan with malformed content (should not crash)
+        # Plan with malformed content - should now be detected as an error
         malformed_result = self.parser.parse("This is not a terraform plan")
+        assert malformed_result.has_errors
         assert not malformed_result.has_changes
 
     def test_no_changes_detection(self):
@@ -446,3 +449,75 @@ Plan: 1 to add, 0 to change, 0 to destroy.
         assert result.to_add == 0
         assert result.to_change == 0
         assert result.to_destroy == 0
+
+    def test_empty_plan_detection(self):
+        """Test detection of empty terraform plan output."""
+        # Test completely empty input
+        result = self.parser.parse("")
+        assert result.has_errors
+        assert not result.has_changes
+        assert len(result.error_messages) > 0
+        assert "empty" in ' '.join(result.error_messages).lower()
+        
+        # Test whitespace-only input
+        result = self.parser.parse("   \n\n   ")
+        assert result.has_errors
+        assert not result.has_changes
+        assert "empty" in ' '.join(result.error_messages).lower()
+    
+    def test_too_short_plan_detection(self):
+        """Test detection of too short terraform plan output."""
+        # Very short input that doesn't look like terraform
+        result = self.parser.parse("short")
+        assert result.has_errors
+        assert not result.has_changes
+        assert "too short" in ' '.join(result.error_messages).lower()
+        
+        # Slightly longer but still too short
+        result = self.parser.parse("This is not terraform output")
+        assert result.has_errors
+        assert not result.has_changes
+        assert any(keyword in ' '.join(result.error_messages).lower() 
+                  for keyword in ["too short", "does not appear"])
+    
+    def test_insufficient_content_detection(self):
+        """Test detection of plans with insufficient content."""
+        # Only one meaningful line
+        result = self.parser.parse("Just one line")
+        assert result.has_errors
+        assert not result.has_changes
+        assert "insufficient" in ' '.join(result.error_messages).lower()
+        
+        # Two lines but not terraform-like
+        result = self.parser.parse("Line one\nLine two")
+        assert result.has_errors
+        assert not result.has_changes
+    
+    def test_invalid_plan_format_detection(self):
+        """Test detection of input that doesn't look like terraform output."""
+        # Random text that's long enough but not terraform
+        non_terraform_text = """
+This is some random text that is long enough to pass the length check
+but it doesn't contain any terraform-specific keywords or patterns
+so it should be detected as invalid terraform plan output.
+It has multiple lines and sufficient content but is clearly not terraform.
+        """
+        
+        result = self.parser.parse(non_terraform_text)
+        assert result.has_errors
+        assert not result.has_changes
+        assert "does not appear" in ' '.join(result.error_messages).lower()
+    
+    def test_incomplete_plan_detection(self):
+        """Test detection of incomplete terraform plans."""
+        # Short text that mentions terraform but seems incomplete
+        incomplete_plan = """
+Terraform will perform some actions
+But this output seems incomplete
+        """
+        
+        result = self.parser.parse(incomplete_plan)
+        assert result.has_errors
+        assert not result.has_changes
+        assert any(keyword in ' '.join(result.error_messages).lower() 
+                  for keyword in ["incomplete", "invalid"])

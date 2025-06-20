@@ -81,13 +81,25 @@ Examples:
         
         # Check for errors first - exit early if found
         if plan_summary.has_errors:
-            print("Error: Terraform plan contains errors", file=sys.stderr)
-            print("\nDetected errors:", file=sys.stderr)
-            for i, error_msg in enumerate(plan_summary.error_messages, 1):
-                print(f"  {i}. {error_msg}", file=sys.stderr)
-            
-            print("\nTFReview cannot generate a review for a failed plan.", file=sys.stderr)
-            print("Please fix the errors and run terraform plan again.", file=sys.stderr)
+            # Check if it's an empty/invalid plan vs actual terraform errors
+            error_text = ' '.join(plan_summary.error_messages).lower()
+            if any(keyword in error_text for keyword in ['empty', 'too short', 'insufficient', 'does not appear']):
+                print("Error: Invalid or empty terraform plan", file=sys.stderr)
+                print("\nThis can happen when:", file=sys.stderr)
+                print("  • terraform plan command failed", file=sys.stderr)
+                print("  • No output was generated", file=sys.stderr) 
+                print("  • Output was redirected incorrectly", file=sys.stderr)
+                print("\nDetected issue:", file=sys.stderr)
+                for i, error_msg in enumerate(plan_summary.error_messages, 1):
+                    print(f"  {i}. {error_msg}", file=sys.stderr)
+                print("\nPlease check that terraform plan runs successfully and try again.", file=sys.stderr)
+            else:
+                print("Error: Terraform plan contains errors", file=sys.stderr)
+                print("\nDetected errors:", file=sys.stderr)
+                for i, error_msg in enumerate(plan_summary.error_messages, 1):
+                    print(f"  {i}. {error_msg}", file=sys.stderr)
+                print("\nTFReview cannot generate a review for a failed plan.", file=sys.stderr)
+                print("Please fix the errors and run terraform plan again.", file=sys.stderr)
             sys.exit(1)
         
         if args.json:
