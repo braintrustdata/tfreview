@@ -61,29 +61,25 @@ class PlanSummary:
 
 class TerraformPlanParser:
     """Parser for Terraform plan output."""
-    
+
     def __init__(self):
         # Regex patterns for parsing
-        self.change_header_pattern = re.compile(
-            r'^  # (.+?) will be (.+?)$'
-        )
-        self.resource_address_pattern = re.compile(
-            r'^(.+?)\.(.+?)(?:\[(.+?)\])?$'
-        )
+        self.change_header_pattern = re.compile(r"^  # (.+?) will be (.+?)$")
+        self.resource_address_pattern = re.compile(r"^(.+?)\.(.+?)(?:\[(.+?)\])?$")
         self.summary_pattern = re.compile(
-            r'Plan: (\d+) to add, (\d+) to change, (\d+) to destroy'
+            r"Plan: (\d+) to add, (\d+) to change, (\d+) to destroy"
         )
         self.no_changes_pattern = re.compile(
-            r'No changes\. Infrastructure is up-to-date\.'
+            r"No changes\. Infrastructure is up-to-date\."
         )
         self.attribute_change_pattern = re.compile(
-            r'^  ([~+-])\s*(.+?)\s*=\s*(.+?)(?:\s*->\s*(.+?))?$'
+            r"^  ([~+-])\s*(.+?)\s*=\s*(.+?)(?:\s*->\s*(.+?))?$"
         )
-        
+
     def parse(self, plan_text: str) -> PlanSummary:
         """Parse terraform plan text into structured data."""
-        lines = plan_text.split('\n')
-        
+        lines = plan_text.split("\n")
+
         # Check for no changes
         if any(self.no_changes_pattern.search(line) for line in lines):
             return PlanSummary(
@@ -93,30 +89,30 @@ class TerraformPlanParser:
                 resource_changes=[],
                 output_changes=[],
                 has_changes=False,
-                raw_plan=plan_text
+                raw_plan=plan_text,
             )
-        
+
         resource_changes = []
         output_changes = []
         to_add = to_change = to_destroy = 0
-        
+
         i = 0
         while i < len(lines):
             line = lines[i].rstrip()
-            
+
             # Check for change header
             header_match = self.change_header_pattern.match(line)
             if header_match:
                 resource_address = header_match.group(1)
                 action = header_match.group(2)
-                
+
                 # Parse the resource change block
                 resource_change, end_index = self._parse_resource_change(
                     lines, i, resource_address, action
                 )
                 if resource_change:
                     resource_changes.append(resource_change)
-                    
+
                     # Update counters
                     if resource_change.change_type == ChangeType.CREATE:
                         to_add += 1
@@ -127,7 +123,7 @@ class TerraformPlanParser:
                     elif resource_change.change_type == ChangeType.REPLACE:
                         to_add += 1
                         to_destroy += 1
-                
+
                 i = end_index
             else:
                 # Check for summary line
@@ -136,13 +132,13 @@ class TerraformPlanParser:
                     to_add = int(summary_match.group(1))
                     to_change = int(summary_match.group(2))
                     to_destroy = int(summary_match.group(3))
-                
+
                 # Check for output changes
-                if line.strip().startswith('Outputs:'):
+                if line.strip().startswith("Outputs:"):
                     output_changes = self._parse_output_changes(lines, i)
-                
+
                 i += 1
-        
+
         return PlanSummary(
             to_add=to_add,
             to_change=to_change,
@@ -150,18 +146,19 @@ class TerraformPlanParser:
             resource_changes=resource_changes,
             output_changes=output_changes,
             has_changes=len(resource_changes) > 0 or len(output_changes) > 0,
-            raw_plan=plan_text
+            raw_plan=plan_text,
         )
-    
-    def _parse_resource_change(self, lines: List[str], start_index: int, 
-                             resource_address: str, action: str) -> Tuple[Optional[ResourceChange], int]:
+
+    def _parse_resource_change(
+        self, lines: List[str], start_index: int, resource_address: str, action: str
+    ) -> Tuple[Optional[ResourceChange], int]:
         """Parse a single resource change block."""
         # Determine change type
         change_type = self._parse_change_type(action)
-        
+
         # Parse resource type and name
         resource_type, resource_name = self._parse_resource_address(resource_address)
-        
+
         # Parse attributes
         attributes_added = []
         attributes_changed = []
@@ -169,53 +166,59 @@ class TerraformPlanParser:
         nested_changes = []
         has_sensitive = False
         has_computed = False
-        
+
         i = start_index + 1
-        while i < len(lines) and not lines[i].strip().startswith('#'):
+        while i < len(lines):
             line = lines[i].rstrip()
-            
+
+            # Check for delimiter: blank line followed by "  #" (next resource) or "Plan:" (summary)
+            if not line.strip() and i + 1 < len(lines):
+                next_line = lines[i + 1]
+                if next_line.startswith("  #") or next_line.startswith("Plan:"):
+                    break
+
             if not line.strip():
                 i += 1
                 continue
-            
-            # Check if this is the start of a new resource block
-            if self.change_header_pattern.match(line):
-                break
-            
+
             # Parse attribute changes
             attr_match = self.attribute_change_pattern.match(line)
             if attr_match:
                 change_op = attr_match.group(1)
                 attr_name = attr_match.group(2)
-                old_value = attr_match.group(3) if len(attr_match.groups()) >= 3 else None
-                new_value = attr_match.group(4) if len(attr_match.groups()) >= 4 else None
-                
+                old_value = (
+                    attr_match.group(3) if len(attr_match.groups()) >= 3 else None
+                )
+                new_value = (
+                    attr_match.group(4) if len(attr_match.groups()) >= 4 else None
+                )
+
                 # Check for sensitive/computed values
                 is_sensitive = "(sensitive value)" in line
                 is_computed = "<computed>" in line or "(known after apply)" in line
-                
+
                 if is_sensitive:
                     has_sensitive = True
                 if is_computed:
                     has_computed = True
-                
+
                 attr_change = AttributeChange(
                     name=attr_name,
                     old_value=old_value,
                     new_value=new_value,
                     is_sensitive=is_sensitive,
-                    is_computed=is_computed
+                    is_computed=is_computed,
                 )
-                
-                if change_op == '+':
+
+                if change_op == "+":
                     attributes_added.append(attr_change)
-                elif change_op == '-':
+                elif change_op == "-":
                     attributes_deleted.append(attr_change)
-                elif change_op == '~':
+                elif change_op == "~":
                     attributes_changed.append(attr_change)
-            
+
             i += 1
-        
+
         resource_change = ResourceChange(
             resource_address=resource_address,
             resource_type=resource_type,
@@ -226,11 +229,11 @@ class TerraformPlanParser:
             attributes_deleted=attributes_deleted,
             nested_changes=nested_changes,
             has_sensitive=has_sensitive,
-            has_computed=has_computed
+            has_computed=has_computed,
         )
-        
+
         return resource_change, i
-    
+
     def _parse_change_type(self, action: str) -> ChangeType:
         """Parse the action string to determine change type."""
         action_lower = action.lower()
@@ -244,91 +247,97 @@ class TerraformPlanParser:
             return ChangeType.REPLACE
         else:
             return ChangeType.NO_OP
-    
+
     def _parse_resource_address(self, address: str) -> Tuple[str, str]:
         """Parse resource address to extract type and name."""
         original_address = address
-        
+
         # Handle indexed resources by removing just the index brackets, not the content after
         # Transform: module.a[0].aws_instance.example[1] -> module.a.aws_instance.example
         import re
-        address = re.sub(r'\[\d+\]', '', address)
-        
+
+        address = re.sub(r"\[\d+\]", "", address)
+
         # For module resources, extract the actual resource type and name
-        if address.startswith('module.'):
-            parts = address.split('.')
-            
+        if address.startswith("module."):
+            parts = address.split(".")
+
             # Look for the actual resource type (like aws_autoscaling_group, aws_launch_template)
             # These typically start with a provider prefix (aws_, google_, azurerm_, etc.)
             for i in range(len(parts)):
                 part = parts[i]
                 # Check if this looks like a resource type (provider_resourcetype pattern)
-                if ('_' in part and 
-                    not part.startswith('module') and 
-                    i < len(parts) - 1):  # Must have a name after it
+                if (
+                    "_" in part and not part.startswith("module") and i < len(parts) - 1
+                ):  # Must have a name after it
                     resource_type = part
                     resource_name = parts[i + 1]
                     return resource_type, resource_name
-            
+
             # Fallback: if no standard resource type found, use the last two parts
             if len(parts) >= 2:
                 return parts[-2], parts[-1]
             else:
                 return parts[-1], ""
-        
+
         # Regular resource (not in module)
-        if '.' in address:
-            resource_type, resource_name = address.split('.', 1)
+        if "." in address:
+            resource_type, resource_name = address.split(".", 1)
         else:
             resource_type = address
             resource_name = ""
-        
+
         return resource_type, resource_name
-    
-    def _parse_output_changes(self, lines: List[str], start_index: int) -> List[OutputChange]:
+
+    def _parse_output_changes(
+        self, lines: List[str], start_index: int
+    ) -> List[OutputChange]:
         """Parse output changes section."""
         output_changes = []
         i = start_index + 1
-        
+
         while i < len(lines):
             line = lines[i].strip()
-            if not line or line.startswith('─'):
+            if not line or line.startswith("─"):
                 i += 1
                 continue
-            
+
             # Look for output definitions
-            if '=' in line:
-                parts = line.split('=', 1)
+            if "=" in line:
+                parts = line.split("=", 1)
                 if len(parts) == 2:
                     name = parts[0].strip()
                     value = parts[1].strip()
                     is_sensitive = "(sensitive value)" in value
-                    
-                    output_changes.append(OutputChange(
-                        name=name,
-                        new_value=value if not is_sensitive else "(sensitive)",
-                        is_sensitive=is_sensitive
-                    ))
-            
+
+                    output_changes.append(
+                        OutputChange(
+                            name=name,
+                            new_value=value if not is_sensitive else "(sensitive)",
+                            is_sensitive=is_sensitive,
+                        )
+                    )
+
             i += 1
-        
+
         return output_changes
-    
+
     def to_json(self, plan_summary: PlanSummary) -> str:
         """Convert plan summary to JSON."""
+
         def convert_dataclass(obj):
-            if hasattr(obj, '__dict__'):
+            if hasattr(obj, "__dict__"):
                 result = {}
                 for key, value in obj.__dict__.items():
                     if isinstance(value, Enum):
                         result[key] = value.value
                     elif isinstance(value, list):
                         result[key] = [convert_dataclass(item) for item in value]
-                    elif hasattr(value, '__dict__'):
+                    elif hasattr(value, "__dict__"):
                         result[key] = convert_dataclass(value)
                     else:
                         result[key] = value
                 return result
             return obj
-        
+
         return json.dumps(convert_dataclass(plan_summary), indent=2)
