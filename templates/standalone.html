@@ -578,15 +578,6 @@
         <div class="header">
             <h1>🔍 Terraform Plan Review</h1>
 
-            <div class="plan-info">
-                <div>
-                    <span class="plan-id">Plan ID: <span id="planId">Loading...</span></span>
-                </div>
-                <div>
-                    <span class="state-indicator" id="stateIndicator">New Review</span>
-                </div>
-            </div>
-
             {% if plan.has_changes %}
             <div class="summary">
                 {% if plan.to_add > 0 %}
@@ -1019,8 +1010,8 @@
 
                         // Find and navigate to next unreviewed resource
                         goToNextUnreviewed();
-                    }, 800); // Wait for collapse animation
-                }, 500); // Initial delay to show approval
+                    }, 300); // Wait for collapse animation
+                }, 200); // Initial delay to show approval
             }
         }
 
@@ -1109,24 +1100,6 @@
                 indicator.style.transform = 'rotate(180deg)';
             }
         }
-
-        // Keyboard shortcuts
-        document.addEventListener('keydown', function (e) {
-            // Press 'n' to go to next unreviewed resource
-            if (e.key === 'n' || e.key === 'N') {
-                goToNextUnreviewed();
-            }
-            // Press 'f' to toggle full plan
-            if (e.key === 'f' || e.key === 'F') {
-                toggleFullPlan();
-            }
-            // Press 'c' to clear all reviews (with confirmation)
-            if (e.key === 'c' || e.key === 'C') {
-                if (e.ctrlKey || e.metaKey) { // Require Ctrl/Cmd modifier
-                    clearAllReviews();
-                }
-            }
-        });
 
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', function () {
