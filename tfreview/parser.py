@@ -56,6 +56,8 @@ class PlanSummary:
     resource_changes: List[ResourceChange]
     output_changes: List[OutputChange]
     has_changes: bool
+    has_errors: bool
+    error_messages: List[str]
     raw_plan: str
 
 
@@ -80,8 +82,135 @@ class TerraformPlanParser:
             r'^  ([~+-])\s*(.+?)\s*=\s*(.+?)(?:\s*->\s*(.+?))?$'
         )
         
+        # Error detection patterns
+        self.error_patterns = [
+            # Generic error patterns
+            re.compile(r'^Error:', re.IGNORECASE | re.MULTILINE),
+            re.compile(r'Error [a-zA-Z]+:', re.IGNORECASE),
+            re.compile(r'╷\s*│\s*Error:', re.MULTILINE),
+            
+            # Authentication and permission errors
+            re.compile(r'(AccessDenied|Access Denied|Forbidden|Unauthorized)', re.IGNORECASE),
+            re.compile(r'No valid credential sources found', re.IGNORECASE),
+            re.compile(r'Unable to locate credentials', re.IGNORECASE),
+            re.compile(r'authentication failed', re.IGNORECASE),
+            re.compile(r'Invalid credentials', re.IGNORECASE),
+            
+            # Configuration and syntax errors
+            re.compile(r'Invalid (character|expression|resource|reference|argument)', re.IGNORECASE),
+            re.compile(r'Missing required argument', re.IGNORECASE),
+            re.compile(r'Unsupported argument', re.IGNORECASE),
+            re.compile(r'Configuration .* is not valid', re.IGNORECASE),
+            re.compile(r'Syntax error', re.IGNORECASE),
+            
+            # Provider and resource errors
+            re.compile(r'Provider .* doesn\'t support', re.IGNORECASE),
+            re.compile(r'Failed to (configure|install|download) provider', re.IGNORECASE),
+            re.compile(r'Resource not found', re.IGNORECASE),
+            re.compile(r'(InvalidAMIID|InvalidInstanceType|InvalidSubnet)', re.IGNORECASE),
+            re.compile(r'(BucketAlreadyExists|BucketNotEmpty)', re.IGNORECASE),
+            
+            # State and locking errors
+            re.compile(r'Error (acquiring|locking) .* state', re.IGNORECASE),
+            re.compile(r'State lock', re.IGNORECASE),
+            re.compile(r'Backend configuration', re.IGNORECASE),
+            
+            # Cycle and dependency errors
+            re.compile(r'Cycle:', re.IGNORECASE),
+            re.compile(r'Dependency cycle', re.IGNORECASE),
+            
+            # Template and data source errors
+            re.compile(r'Error rendering template', re.IGNORECASE),
+            re.compile(r'Invalid data source', re.IGNORECASE),
+            
+            # Network and infrastructure errors
+            re.compile(r'(InvalidSubnet\.Range|InvalidVpcID|InvalidRouteTableID)', re.IGNORECASE),
+            re.compile(r'Network .* error', re.IGNORECASE),
+            
+            # API and service errors
+            re.compile(r'API Error', re.IGNORECASE),
+            re.compile(r'Service .* (unavailable|error)', re.IGNORECASE),
+            re.compile(r'Request failed', re.IGNORECASE),
+            
+            # Generic failure patterns
+            re.compile(r'Failed to .+', re.IGNORECASE),
+            re.compile(r'Could not .+', re.IGNORECASE),
+            re.compile(r'Unable to .+', re.IGNORECASE),
+            
+            # Terraform-specific error markers
+            re.compile(r'Terraform encountered an error', re.IGNORECASE),
+            re.compile(r'Planning failed', re.IGNORECASE),
+            re.compile(r'Operation failed', re.IGNORECASE),
+        ]
+        
+    def _detect_errors(self, plan_text: str) -> Tuple[bool, List[str]]:
+        """Detect if the plan text contains errors."""
+        error_messages = []
+        has_errors = False
+        
+        lines = plan_text.split('\n')
+        
+        # Check for error patterns
+        for pattern in self.error_patterns:
+            matches = pattern.findall(plan_text)
+            if matches:
+                has_errors = True
+                # Find the lines containing errors for context
+                for line in lines:
+                    if pattern.search(line):
+                        error_messages.append(line.strip())
+        
+        # Check for specific terraform error indicators
+        if any('terraform init' in line.lower() and 'required' in line.lower() for line in lines):
+            has_errors = True
+            error_messages.append("Terraform initialization required")
+        
+        # Check for exit status indicators that suggest errors
+        if any(line.strip().startswith('Error:') for line in lines):
+            has_errors = True
+        
+        # Look for terraform's box-drawing error format
+        if '╷' in plan_text and '│' in plan_text and 'Error:' in plan_text:
+            has_errors = True
+            # Extract the error message from the box format
+            in_error_box = False
+            for line in lines:
+                if '╷' in line:
+                    in_error_box = True
+                elif '╵' in line:
+                    in_error_box = False
+                elif in_error_box and '│' in line:
+                    error_msg = line.replace('│', '').strip()
+                    if error_msg and error_msg not in error_messages:
+                        error_messages.append(error_msg)
+        
+        # Remove duplicates while preserving order
+        unique_errors = []
+        for msg in error_messages:
+            if msg and msg not in unique_errors:
+                unique_errors.append(msg)
+        
+        return has_errors, unique_errors[:10]  # Limit to first 10 error messages
+        
     def parse(self, plan_text: str) -> PlanSummary:
         """Parse terraform plan text into structured data."""
+        # First check for errors
+        has_errors, error_messages = self._detect_errors(plan_text)
+        
+        # If errors are detected, return early with error information
+        if has_errors:
+            return PlanSummary(
+                to_add=0,
+                to_change=0,
+                to_destroy=0,
+                resource_changes=[],
+                output_changes=[],
+                has_changes=False,
+                has_errors=True,
+                error_messages=error_messages,
+                raw_plan=plan_text
+            )
+        
         lines = plan_text.split('\n')
         
         # Check for no changes
@@ -93,6 +222,8 @@ class TerraformPlanParser:
                 resource_changes=[],
                 output_changes=[],
                 has_changes=False,
+                has_errors=False,
+                error_messages=[],
                 raw_plan=plan_text
             )
         
@@ -150,6 +281,8 @@ class TerraformPlanParser:
             resource_changes=resource_changes,
             output_changes=output_changes,
             has_changes=len(resource_changes) > 0 or len(output_changes) > 0,
+            has_errors=False,
+            error_messages=[],
             raw_plan=plan_text
         )
     

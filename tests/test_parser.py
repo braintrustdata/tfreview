@@ -226,3 +226,223 @@ class TestTerraformPlanParser:
         # Plan with malformed content (should not crash)
         malformed_result = self.parser.parse("This is not a terraform plan")
         assert not malformed_result.has_changes
+
+    def test_no_changes_detection(self):
+        """Test detection of 'no changes' plan."""
+        plan_text = """
+Terraform used the selected providers to generate the following execution plan.
+
+No changes. Infrastructure is up-to-date.
+
+This means that Terraform did not detect any differences between your
+configuration and the remote system state. As a result, there are no
+actions to take.
+        """
+        
+        result = self.parser.parse(plan_text)
+        assert not result.has_changes
+        assert not result.has_errors
+        assert len(result.error_messages) == 0
+        assert result.to_add == 0
+        assert result.to_change == 0
+        assert result.to_destroy == 0
+    
+    def test_error_detection_generic(self):
+        """Test detection of generic terraform errors."""
+        plan_text = """
+Error: Invalid character
+
+  on main.tf line 46, in resource "aws_instance" "web_app":
+ 46:     Name = $var.name-web_app
+
+This character is not used within the language.
+
+Error: Invalid expression
+
+  on main.tf line 46, in resource "aws_instance" "web_app":
+  46:     Name = $var.name-web_app
+
+Expected the start of an expression, but found an invalid expression token.
+        """
+        
+        result = self.parser.parse(plan_text)
+        assert result.has_errors
+        assert not result.has_changes
+        assert len(result.error_messages) > 0
+        assert result.to_add == 0
+        assert result.to_change == 0
+        assert result.to_destroy == 0
+        
+        # Should contain error information
+        error_text = ' '.join(result.error_messages).lower()
+        assert 'error' in error_text
+    
+    def test_error_detection_authentication(self):
+        """Test detection of authentication errors."""
+        plan_text = """
+╷
+│ Error: No valid credential sources found for AWS Provider.
+│ 
+│   on main.tf line 1, in provider "aws":
+│    1: provider "aws" {
+│ 
+│ Please see https://registry.terraform.io/providers/hashicorp/aws
+│ for more information about providing credentials.
+│ 
+│ Error: failed to refresh cached credentials, no EC2 IMDS role found,
+│ operation error ec2imds: GetMetadata, request send failed, Get
+│ "http://169.254.169.254/latest/meta-data/iam/security-credentials/": dial tcp
+│ 169.254.169.254:80: connect: network is unreachable
+╵
+        """
+        
+        result = self.parser.parse(plan_text)
+        assert result.has_errors
+        assert not result.has_changes
+        assert len(result.error_messages) > 0
+        
+        # Should detect credential errors
+        error_text = ' '.join(result.error_messages).lower()
+        assert 'credential' in error_text or 'error' in error_text
+    
+    def test_error_detection_access_denied(self):
+        """Test detection of access denied errors.""" 
+        plan_text = """
+Error creating IAM Role: AccessDenied: User: arn:aws:iam::123456789012:user/terraform 
+is not authorized to perform: iam:CreateRole on resource: role test-role
+
+        """
+        
+        result = self.parser.parse(plan_text)
+        assert result.has_errors
+        assert not result.has_changes
+        assert len(result.error_messages) > 0
+        
+        # Should detect access denied
+        error_text = ' '.join(result.error_messages).lower()
+        assert 'accessdenied' in error_text
+    
+    def test_error_detection_provider_not_found(self):
+        """Test detection of provider errors."""
+        plan_text = """
+Error: Failed to install provider
+
+Provider registry.terraform.io/hashicorp/nonexistent does not exist or
+you may not have access to it.
+        """
+        
+        result = self.parser.parse(plan_text)
+        assert result.has_errors
+        assert not result.has_changes
+        assert len(result.error_messages) > 0
+        
+        # Should detect provider failure
+        error_text = ' '.join(result.error_messages).lower()
+        assert 'failed' in error_text or 'error' in error_text
+    
+    def test_error_detection_cycle_error(self):
+        """Test detection of dependency cycle errors."""
+        plan_text = """
+Error: Cycle: aws_security_group.sg_ping, aws_security_group.sg_8080
+        """
+        
+        result = self.parser.parse(plan_text)
+        assert result.has_errors
+        assert not result.has_changes
+        assert len(result.error_messages) > 0
+        
+        # Should detect cycle
+        error_text = ' '.join(result.error_messages).lower()
+        assert 'cycle' in error_text
+    
+    def test_valid_plan_with_changes(self):
+        """Test parsing a valid plan with changes."""
+        plan_text = """
+Terraform used the selected providers to generate the following execution plan. Resource actions are indicated with the following symbols:
+  + create
+
+Terraform will perform the following actions:
+
+  # aws_instance.example will be created
+  + resource "aws_instance" "example" {
+      + ami                                  = "ami-0c02fb55956c7d316"
+      + arn                                  = (known after apply)
+      + associate_public_ip_address          = (known after apply)
+      + availability_zone                    = (known after apply)
+      + cpu_core_count                       = (known after apply)
+      + cpu_threads_per_core                 = (known after apply)
+      + disable_api_stop                     = (known after apply)
+      + disable_api_termination              = (known after apply)
+      + ebs_optimized                        = (known after apply)
+      + get_password_data                    = false
+      + host_id                              = (known after apply)
+      + id                                   = (known after apply)
+      + instance_initiated_shutdown_behavior = (known after apply)
+      + instance_state                       = (known after apply)
+      + instance_type                        = "t2.micro"
+      + ipv6_address_count                   = (known after apply)
+      + ipv6_addresses                       = (known after apply)
+      + key_name                             = (known after apply)
+      + monitoring                           = (known after apply)
+      + outpost_arn                          = (known after apply)
+      + password_data                        = (known after apply)
+      + placement_group                      = (known after apply)
+      + placement_partition_number           = (known after apply)
+      + primary_network_interface_id         = (known after apply)
+      + private_dns_name_options             = (known after apply)
+      + private_ip                           = (known after apply)
+      + public_dns                           = (known after apply)
+      + public_ip                            = (known after apply)
+      + secondary_private_ips                = (known after apply)
+      + security_groups                      = (known after apply)
+      + source_dest_check                    = true
+      + subnet_id                            = (known after apply)
+      + tags_all                             = (known after apply)
+      + tenancy                              = (known after apply)
+      + user_data                            = (known after apply)
+      + user_data_base64                     = (known after apply)
+      + user_data_replace_on_change          = false
+      + vpc_security_group_ids               = (known after apply)
+    }
+
+Plan: 1 to add, 0 to change, 0 to destroy.
+        """
+        
+        result = self.parser.parse(plan_text)
+        assert not result.has_errors
+        assert result.has_changes
+        assert len(result.error_messages) == 0
+        assert result.to_add == 1
+        assert result.to_change == 0
+        assert result.to_destroy == 0
+        assert len(result.resource_changes) == 1
+    
+    def test_mixed_error_and_plan_prioritizes_error(self):
+        """Test that errors take priority over plan content."""
+        plan_text = """
+Error: Invalid configuration
+
+  on main.tf line 10:
+  10: invalid syntax here
+
+Expected a resource or data block.
+
+Terraform used the selected providers to generate the following execution plan.
+
+  # aws_instance.example will be created
+  + resource "aws_instance" "example" {
+      + instance_type = "t2.micro"
+    }
+
+Plan: 1 to add, 0 to change, 0 to destroy.
+        """
+        
+        result = self.parser.parse(plan_text)
+        assert result.has_errors
+        # When errors are detected, has_changes should be False
+        assert not result.has_changes
+        assert len(result.error_messages) > 0
+        # Counters should be 0 when errors are detected
+        assert result.to_add == 0
+        assert result.to_change == 0
+        assert result.to_destroy == 0
