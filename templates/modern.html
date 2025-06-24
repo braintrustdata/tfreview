@@ -549,29 +549,24 @@
         }
 
         .resource-content {
-            padding: 0 20px 16px;
+            padding: 0;
             border-top: 1px solid #e2e8f0;
             opacity: 0;
             max-height: 0;
             overflow: hidden;
             background: transparent;
-            transition: opacity 0.3s ease, max-height 0.3s ease;
+            transition: opacity 0.3s ease, max-height 0.3s ease, padding 0.3s ease;
         }
 
         .resource-content.expanded {
             opacity: 1;
-            max-height: 10000px;
+            max-height: none;
+            padding: 0 20px 16px;
+            overflow: visible;
             background: #e5e7eb;
             box-shadow: 0 12px 32px 0 rgba(0, 0, 0, 0.14), 0 4px 12px 0 rgba(0, 0, 0, 0.10);
-            z-index: 3;
+            z-index: 2;
             border-left: 3px solid #888;
-        }
-
-        .resource-content.collapsing {
-            opacity: 0;
-            max-height: 0;
-            transition: opacity 0.3s ease, max-height 0.3s ease;
-            overflow: hidden;
         }
 
         .resource-diff {
@@ -1189,13 +1184,6 @@
                 const index = parseInt(indexStr);
                 const statusElement = document.getElementById(`status-${index}`);
                 const actionsContainer = document.getElementById(`actions-${index}`);
-
-                // Ensure all buttons are available before accessing them
-                if (!actionsContainer || actionsContainer.children.length < 4) {
-                    console.warn(`Actions container not found or incomplete for resource ${index}`);
-                    return;
-                }
-
                 const approveBtn = actionsContainer.children[0];
                 const needsChangesBtn = actionsContainer.children[1];
                 const clearBtn = actionsContainer.children[3];
@@ -1215,9 +1203,7 @@
                     resourceCard.classList.remove('approved', 'needs-changes');
                 }
 
-                // Ensure all buttons are visible and properly styled
-                approveBtn.style.display = 'inline-block';
-                needsChangesBtn.style.display = 'inline-block';
+                // Only show clear button, do not hide approve/needs-changes buttons
                 clearBtn.style.display = 'inline-block';
             });
 
@@ -1259,14 +1245,8 @@
                 content.classList.remove('expanded');
                 header.classList.remove('expanded');
             } else {
-                // Use requestAnimationFrame to ensure DOM is ready
-                requestAnimationFrame(() => {
-                    content.classList.add('expanded');
-                    header.classList.add('expanded');
-
-                    // Force a reflow to ensure the expanded state is applied
-                    content.offsetHeight;
-                });
+                content.classList.add('expanded');
+                header.classList.add('expanded');
             }
         }
 
@@ -1277,13 +1257,6 @@
 
             const statusElement = document.getElementById(`status-${index}`);
             const actionsContainer = document.getElementById(`actions-${index}`);
-
-            // Ensure all buttons are available before accessing them
-            if (!actionsContainer || actionsContainer.children.length < 4) {
-                console.error(`Actions container not found or incomplete for resource ${index}`);
-                return;
-            }
-
             const approveBtn = actionsContainer.children[0];
             const needsChangesBtn = actionsContainer.children[1];
             const nextBtn = actionsContainer.children[2];
@@ -1338,13 +1311,6 @@
 
             const statusElement = document.getElementById(`status-${index}`);
             const actionsContainer = document.getElementById(`actions-${index}`);
-
-            // Ensure all buttons are available before accessing them
-            if (!actionsContainer || actionsContainer.children.length < 4) {
-                console.error(`Actions container not found or incomplete for resource ${index}`);
-                return;
-            }
-
             const approveBtn = actionsContainer.children[0];
             const needsChangesBtn = actionsContainer.children[1];
             const clearBtn = actionsContainer.children[3];
@@ -1400,13 +1366,8 @@
 
             // Expand card after scroll
             setTimeout(() => {
-                requestAnimationFrame(() => {
-                    content.classList.add('expanded');
-                    header.classList.add('expanded');
-
-                    // Force a reflow to ensure the expanded state is applied
-                    content.offsetHeight;
-                });
+                content.classList.add('expanded');
+                header.classList.add('expanded');
             }, 600); // Wait for scroll to complete
         }
 
