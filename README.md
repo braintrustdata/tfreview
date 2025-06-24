@@ -6,7 +6,8 @@ Pipe your terraform plan output to it and it will open in your browser.
 `terraform plan | tfreview`
 
 ![TFReview Screenshot](assets/tfreview.png)
-![TFReview Demo](assets/tfreview-anim.mp4)
+![Demo](https://github.com/user-attachments/assets/41cbdf06-ad61-4048-9290-325c12eec70c)
+
 
 
 ## Features ✨
