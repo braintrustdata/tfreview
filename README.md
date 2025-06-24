@@ -5,7 +5,9 @@ A modern, interactive tool for reviewing Terraform plans in a beautiful HTML int
 Pipe your terraform plan output to it and it will open in your browser.
 `terraform plan | tfreview`
 
-![TFReview Screenshot](images/tfreview.png)
+![TFReview Screenshot](assets/tfreview.png)
+![TFReview Demo](assets/tfreview-anim.mp4)
+
 
 ## Features ✨
 
