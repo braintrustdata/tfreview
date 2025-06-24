@@ -363,6 +363,56 @@
             background: #f7fafc;
         }
 
+        /* Approved resource highlighting */
+        .resource-card.approved {
+            background: linear-gradient(90deg, #f0fff4, #ffffff);
+            border-left: 4px solid #48bb78;
+            box-shadow: 0 2px 8px rgba(72, 187, 120, 0.15);
+        }
+
+        .resource-card.approved:hover {
+            background: linear-gradient(135deg, #e6fffa 0%, #d4f5e6 100%);
+            box-shadow: 0 4px 12px rgba(72, 187, 120, 0.25);
+        }
+
+        .resource-card.approved .resource-header {
+            background: rgba(72, 187, 120, 0.05);
+        }
+
+        .resource-card.approved .resource-header:hover {
+            background: rgba(72, 187, 120, 0.1);
+        }
+
+        .resource-card.approved .resource-address {
+            color: #22543d;
+            font-weight: 700;
+        }
+
+        /* Needs changes resource highlighting */
+        .resource-card.needs-changes {
+            background: linear-gradient(90deg, #fffaf0, #ffffff);
+            border-left: 4px solid #ed8936;
+            box-shadow: 0 2px 8px rgba(237, 137, 54, 0.15);
+        }
+
+        .resource-card.needs-changes:hover {
+            background: linear-gradient(135deg, #fef5e7 0%, #fed7aa 100%);
+            box-shadow: 0 4px 12px rgba(237, 137, 54, 0.25);
+        }
+
+        .resource-card.needs-changes .resource-header {
+            background: rgba(237, 137, 54, 0.05);
+        }
+
+        .resource-card.needs-changes .resource-header:hover {
+            background: rgba(237, 137, 54, 0.1);
+        }
+
+        .resource-card.needs-changes .resource-address {
+            color: #744210;
+            font-weight: 700;
+        }
+
         .resource-header {
             padding: 16px 20px;
             cursor: pointer;
@@ -1143,15 +1193,22 @@
                 const approveBtn = actionsContainer.children[0];
                 const needsChangesBtn = actionsContainer.children[1];
                 const clearBtn = actionsContainer.children[3];
+                const resourceCard = document.querySelector(`[data-resource-index="${index}"]`);
 
                 // Update status display
                 statusElement.style.display = 'inline-block';
                 if (status === 'approved') {
                     statusElement.textContent = '✅';
                     statusElement.className = 'review-status status-approved';
+                    // Add approved class to resource card
+                    resourceCard.classList.add('approved');
+                    resourceCard.classList.remove('needs-changes');
                 } else if (status === 'needs-changes') {
                     statusElement.textContent = '⚠️';
                     statusElement.className = 'review-status status-needs-changes';
+                    // Add needs-changes class to resource card
+                    resourceCard.classList.add('needs-changes');
+                    resourceCard.classList.remove('approved');
                 }
 
                 // Show clear button and hide approve/needs-changes buttons
@@ -1214,15 +1271,22 @@
             const needsChangesBtn = actionsContainer.children[1];
             const nextBtn = actionsContainer.children[2];
             const clearBtn = actionsContainer.children[3];
+            const resourceCard = document.querySelector(`[data-resource-index="${index}"]`);
 
             // Update status display
             statusElement.style.display = 'inline-block';
             if (status === 'approved') {
                 statusElement.textContent = '✅';
                 statusElement.className = 'review-status status-approved';
+                // Add approved class to resource card
+                resourceCard.classList.add('approved');
+                resourceCard.classList.remove('needs-changes');
             } else if (status === 'needs-changes') {
                 statusElement.textContent = '⚠️';
                 statusElement.className = 'review-status status-needs-changes';
+                // Add needs-changes class to resource card
+                resourceCard.classList.add('needs-changes');
+                resourceCard.classList.remove('approved');
             }
 
             // Show clear button and hide approve/needs-changes buttons
@@ -1264,9 +1328,13 @@
             const approveBtn = actionsContainer.children[0];
             const needsChangesBtn = actionsContainer.children[1];
             const clearBtn = actionsContainer.children[3];
+            const resourceCard = document.querySelector(`[data-resource-index="${index}"]`);
 
             // Hide status
             statusElement.style.display = 'none';
+
+            // Remove CSS classes from resource card
+            resourceCard.classList.remove('approved', 'needs-changes');
 
             // Show approve/needs-changes buttons and hide clear button
             approveBtn.style.display = 'inline-block';
