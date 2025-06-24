@@ -36,6 +36,12 @@ Examples:
   # Specify output file
   tfreview -o review.html
 
+  # Use a custom template
+  tfreview --template nextui_standalone.html
+
+  # Use custom templates directory
+  tfreview --templates /path/to/templates --template my_template.html
+
   # Don't open browser automatically
   tfreview --no-browser
         """,
@@ -64,6 +70,12 @@ Examples:
     )
 
     parser.add_argument("--templates", help="Custom templates directory")
+
+    parser.add_argument(
+        "--template",
+        help="Template file to use (default: standalone.html)",
+        default="standalone.html",
+    )
 
     parser.add_argument("--version", action="version", version="TFReview 1.0.0")
 
@@ -97,7 +109,7 @@ Examples:
         # Render as HTML
         print("Generating HTML review...", file=sys.stderr)
         renderer = HTMLRenderer(args.templates)
-        html_content = renderer.create_standalone_html(plan_summary)
+        html_content = renderer.create_standalone_html(plan_summary, args.template)
 
         # Write output
         output_path = Path(args.output)

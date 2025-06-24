@@ -107,9 +107,15 @@
         }
 
         .summary-destroy {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
+            background: #8b0000;
+            color: #ffffff;
+            border: 1px solid #8b0000;
+        }
+
+        .summary-replace {
+            background: #ff8c00;
+            color: #ffffff;
+            border: 1px solid #ff8c00;
         }
 
         .no-changes {
@@ -143,8 +149,8 @@
         }
 
         .change-group-header.replace-group {
-            border-left-color: #fd7e14;
-            background: linear-gradient(90deg, #fff8f0, #ffffff);
+            border-left-color: #dc3545;
+            background: linear-gradient(90deg, #fff5f5, #ffffff);
         }
 
         .change-group-header.update-group {
@@ -210,7 +216,13 @@
         }
 
         .change-replace .resource-header {
-            border-left-color: #fd7e14;
+            border-left-color: #dc3545;
+        }
+
+        .resource-header-main {
+            display: flex;
+            align-items: center;
+            gap: 16px;
         }
 
         .resource-title {
@@ -228,6 +240,45 @@
             font-family: 'Courier New', monospace;
             font-weight: bold;
             font-size: 1.1em;
+            color: #6c757d;
+        }
+
+        .resource-name-highlight {
+            background: #e9ecef;
+            color: #495057;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: bold;
+            border-left: 3px solid #007bff;
+            border-right: 3px solid #007bff;
+        }
+
+        .change-create .resource-name-highlight {
+            background: #d4edda;
+            color: #155724;
+            border-left-color: #28a745;
+            border-right-color: #28a745;
+        }
+
+        .change-update .resource-name-highlight {
+            background: #fff3cd;
+            color: #856404;
+            border-left-color: #ffc107;
+            border-right-color: #ffc107;
+        }
+
+        .change-delete .resource-name-highlight {
+            background: #f8d7da;
+            color: #721c24;
+            border-left-color: #dc3545;
+            border-right-color: #dc3545;
+        }
+
+        .change-replace .resource-name-highlight {
+            background: #f8d7da;
+            color: #721c24;
+            border-left-color: #dc3545;
+            border-right-color: #dc3545;
         }
 
         /* Color-coded resource names */
@@ -255,8 +306,8 @@
         }
 
         .change-replace .resource-name {
-            background: #ffeaa7;
-            color: #e67e22;
+            background: #f8d7da;
+            color: #721c24;
         }
 
         .change-type {
@@ -282,7 +333,7 @@
         }
 
         .change-replace .change-type {
-            background: #fd7e14;
+            background: #dc3545;
         }
 
         .expand-indicator {
@@ -339,7 +390,7 @@
         }
 
         .tf-change {
-            color: #fbd38d;
+            color: #f6ad55;
         }
 
         .tf-replace {
@@ -354,6 +405,14 @@
         .tf-computed {
             color: #81e6d9;
             font-style: italic;
+        }
+
+        .tf-forces-replacement {
+            color: #fc8181;
+            font-weight: bold;
+            background-color: rgba(252, 129, 129, 0.1);
+            padding: 1px 3px;
+            border-radius: 3px;
         }
 
         .review-actions {
@@ -426,21 +485,16 @@
 
         .review-status {
             display: inline-block;
-            padding: 5px 10px;
-            border-radius: 4px;
-            font-size: 0.8em;
-            font-weight: bold;
-            margin-left: 10px;
+            margin-right: 10px;
+            font-size: 1.2em;
         }
 
         .status-approved {
-            background: #d4edda;
-            color: #155724;
+            color: #28a745;
         }
 
         .status-needs-changes {
-            background: #f8d7da;
-            color: #721c24;
+            color: #dc3545;
         }
 
         /* Floating Progress Bar */
@@ -592,6 +646,12 @@
                 </div>
                 {% endif %}
 
+                {% if plan.to_replace > 0 %}
+                <div class="summary-item summary-replace">
+                    🔄 {{ plan.to_replace }} to replace
+                </div>
+                {% endif %}
+
                 {% if plan.to_destroy > 0 %}
                 <div class="summary-item summary-destroy">
                     ❌ {{ plan.to_destroy }} to destroy
@@ -655,11 +715,13 @@
                 <div class="resource-card {{ resource.change_type|change_type_class }}"
                     data-resource-index="{{ resource_index[0] }}">
                     <div class="resource-header" onclick="toggleResource({{ resource_index[0] }})">
-                        <div class="resource-title">
-                            <span class="resource-icon">{{ resource.change_type|change_type_icon }}</span>
-                            <span class="resource-name">{{ resource.resource_type }}.{{ resource.resource_name }}</span>
-                            <div class="change-type">{{ resource.change_type.value }}</div>
-                            <div class="review-status" id="status-{{ resource_index[0] }}" style="display: none;"></div>
+                        <div class="resource-header-main">
+                            <div class="resource-title">
+                                <div class="review-status" id="status-{{ resource_index[0] }}" style="display: none;">
+                                </div>
+                                <span class="resource-address">{{ resource.resource_address|highlight_resource_name|safe
+                                    }}</span>
+                            </div>
                         </div>
                         <div class="expand-indicator">▼</div>
                     </div>
@@ -702,11 +764,13 @@
                 <div class="resource-card {{ resource.change_type|change_type_class }}"
                     data-resource-index="{{ resource_index[0] }}">
                     <div class="resource-header" onclick="toggleResource({{ resource_index[0] }})">
-                        <div class="resource-title">
-                            <span class="resource-icon">{{ resource.change_type|change_type_icon }}</span>
-                            <span class="resource-name">{{ resource.resource_type }}.{{ resource.resource_name }}</span>
-                            <div class="change-type">{{ resource.change_type.value }}</div>
-                            <div class="review-status" id="status-{{ resource_index[0] }}" style="display: none;"></div>
+                        <div class="resource-header-main">
+                            <div class="resource-title">
+                                <div class="review-status" id="status-{{ resource_index[0] }}" style="display: none;">
+                                </div>
+                                <span class="resource-address">{{ resource.resource_address|highlight_resource_name|safe
+                                    }}</span>
+                            </div>
                         </div>
                         <div class="expand-indicator">▼</div>
                     </div>
@@ -749,11 +813,13 @@
                 <div class="resource-card {{ resource.change_type|change_type_class }}"
                     data-resource-index="{{ resource_index[0] }}">
                     <div class="resource-header" onclick="toggleResource({{ resource_index[0] }})">
-                        <div class="resource-title">
-                            <span class="resource-icon">{{ resource.change_type|change_type_icon }}</span>
-                            <span class="resource-name">{{ resource.resource_type }}.{{ resource.resource_name }}</span>
-                            <div class="change-type">{{ resource.change_type.value }}</div>
-                            <div class="review-status" id="status-{{ resource_index[0] }}" style="display: none;"></div>
+                        <div class="resource-header-main">
+                            <div class="resource-title">
+                                <div class="review-status" id="status-{{ resource_index[0] }}" style="display: none;">
+                                </div>
+                                <span class="resource-address">{{ resource.resource_address|highlight_resource_name|safe
+                                    }}</span>
+                            </div>
                         </div>
                         <div class="expand-indicator">▼</div>
                     </div>
@@ -796,11 +862,13 @@
                 <div class="resource-card {{ resource.change_type|change_type_class }}"
                     data-resource-index="{{ resource_index[0] }}">
                     <div class="resource-header" onclick="toggleResource({{ resource_index[0] }})">
-                        <div class="resource-title">
-                            <span class="resource-icon">{{ resource.change_type|change_type_icon }}</span>
-                            <span class="resource-name">{{ resource.resource_type }}.{{ resource.resource_name }}</span>
-                            <div class="change-type">{{ resource.change_type.value }}</div>
-                            <div class="review-status" id="status-{{ resource_index[0] }}" style="display: none;"></div>
+                        <div class="resource-header-main">
+                            <div class="resource-title">
+                                <div class="review-status" id="status-{{ resource_index[0] }}" style="display: none;">
+                                </div>
+                                <span class="resource-address">{{ resource.resource_address|highlight_resource_name|safe
+                                    }}</span>
+                            </div>
                         </div>
                         <div class="expand-indicator">▼</div>
                     </div>
@@ -846,7 +914,7 @@
             </div>
 
             <div class="full-plan-content" id="fullPlanContent">
-                <div class="full-plan-text">{{ plan.raw_plan|colorize_terraform|safe }}</div>
+                <div class="full-plan-text">{{ plan.raw_plan|colorize_terraform_full|safe }}</div>
             </div>
         </div>
         {% endif %}
@@ -910,10 +978,10 @@
                 // Update status display
                 statusElement.style.display = 'inline-block';
                 if (status === 'approved') {
-                    statusElement.textContent = '✅ Approved';
+                    statusElement.textContent = '✅';
                     statusElement.className = 'review-status status-approved';
                 } else if (status === 'needs-changes') {
-                    statusElement.textContent = '⚠️ Needs Changes';
+                    statusElement.textContent = '⚠️';
                     statusElement.className = 'review-status status-needs-changes';
                 }
 
@@ -979,10 +1047,10 @@
             // Update status display
             statusElement.style.display = 'inline-block';
             if (status === 'approved') {
-                statusElement.textContent = '✅ Approved';
+                statusElement.textContent = '✅';
                 statusElement.className = 'review-status status-approved';
             } else if (status === 'needs-changes') {
-                statusElement.textContent = '⚠️ Needs Changes';
+                statusElement.textContent = '⚠️';
                 statusElement.className = 'review-status status-needs-changes';
             }
 
@@ -1052,9 +1120,9 @@
                     return;
                 }
             }
-            // If all reviewed, show completion message
+            // If all reviewed, just update progress (no popup)
             if (reviewedResources.size === totalResources) {
-                alert('🎉 All resources have been reviewed!');
+                updateProgress();
             }
         }
 

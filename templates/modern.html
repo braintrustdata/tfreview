@@ -1,0 +1,1439 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Terraform Plan Review</title>
+    <style>
+        /* Modern CSS with reduced white space */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.4;
+            color: #1a202c;
+            background: linear-gradient(135deg, #3B82F6 0%, #1E3A8A 100%);
+            min-height: 100vh;
+            padding: 0;
+        }
+
+        .container {
+            max-width: none;
+            margin: 0;
+            background: #ffffff;
+            border-radius: 0;
+            box-shadow: none;
+            overflow: visible;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2d3748 0%, #4a5568 100%);
+            color: white;
+            padding: 8px 24px;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            width: 100%;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            backdrop-filter: blur(10px);
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
+            opacity: 0.3;
+        }
+
+        .header h1 {
+            font-size: 1.4rem;
+            font-weight: 700;
+            margin-bottom: 0;
+            position: relative;
+            z-index: 1;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .header-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            white-space: nowrap;
+        }
+
+        .header-counts {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            opacity: 0.9;
+            flex-wrap: wrap;
+        }
+
+        .header-progress {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-left: auto;
+            font-size: 0.85rem;
+            font-weight: 600;
+            opacity: 0.9;
+        }
+
+        .header-progress-bar {
+            width: 120px;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .header-progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #48bb78, #38a169);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .header-progress-text {
+            white-space: nowrap;
+            min-width: 80px;
+        }
+
+        .header-progress-percent {
+            white-space: nowrap;
+            min-width: 30px;
+            text-align: right;
+        }
+
+        .header-count-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 1em;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            white-space: nowrap;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            color: inherit;
+            font-weight: 600;
+        }
+
+        .header-count-item:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            border-color: rgba(255, 255, 255, 0.5);
+        }
+
+        .header-count-item:active {
+            transform: translateY(0);
+        }
+
+        .header-count-add {
+            background: rgba(72, 187, 120, 0.4);
+            color: #ffffff;
+            border-color: rgba(72, 187, 120, 0.6);
+        }
+
+        .header-count-add:hover {
+            background: rgba(72, 187, 120, 0.5);
+            border-color: rgba(72, 187, 120, 0.8);
+        }
+
+        .header-count-change {
+            background: rgba(237, 137, 54, 0.4);
+            color: #ffffff;
+            border-color: rgba(237, 137, 54, 0.6);
+        }
+
+        .header-count-change:hover {
+            background: rgba(237, 137, 54, 0.5);
+            border-color: rgba(237, 137, 54, 0.8);
+        }
+
+        .header-count-replace {
+            background: rgba(245, 101, 101, 0.4);
+            color: #ffffff;
+            border-color: rgba(245, 101, 101, 0.6);
+        }
+
+        .header-count-replace:hover {
+            background: rgba(245, 101, 101, 0.5);
+            border-color: rgba(245, 101, 101, 0.8);
+        }
+
+        .header-count-destroy {
+            background: rgba(245, 101, 101, 0.4);
+            color: #ffffff;
+            border-color: rgba(245, 101, 101, 0.6);
+        }
+
+        .header-count-destroy:hover {
+            background: rgba(245, 101, 101, 0.5);
+            border-color: rgba(245, 101, 101, 0.8);
+        }
+
+        .header-count-icon {
+            line-height: 1;
+            display: inline-block;
+            vertical-align: middle;
+        }
+
+        .plan-info {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+            font-size: 0.875rem;
+            color: rgba(255, 255, 255, 0.9);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 16px;
+            position: relative;
+            z-index: 1;
+            backdrop-filter: blur(10px);
+        }
+
+        .plan-id {
+            font-weight: 600;
+        }
+
+        .state-indicator {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .state-new {
+            background: rgba(72, 187, 120, 0.2);
+            color: #68d391;
+            border: 1px solid rgba(72, 187, 120, 0.3);
+        }
+
+        .state-restored {
+            background: rgba(66, 153, 225, 0.2);
+            color: #63b3ed;
+            border: 1px solid rgba(66, 153, 225, 0.3);
+        }
+
+        .summary {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+            position: relative;
+            z-index: 1;
+            flex-wrap: wrap;
+        }
+
+        .summary-item {
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+            min-width: 120px;
+        }
+
+        .summary-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        }
+
+        .summary-add {
+            background: rgba(72, 187, 120, 0.2);
+            color: #68d391;
+            border-color: rgba(72, 187, 120, 0.3);
+        }
+
+        .summary-change {
+            background: rgba(237, 137, 54, 0.2);
+            color: #f6ad55;
+            border-color: rgba(237, 137, 54, 0.3);
+        }
+
+        .summary-destroy {
+            background: rgba(245, 101, 101, 0.2);
+            color: #fc8181;
+            border-color: rgba(245, 101, 101, 0.3);
+        }
+
+        .summary-replace {
+            background: rgba(245, 101, 101, 0.2);
+            color: #fc8181;
+            border-color: rgba(245, 101, 101, 0.3);
+        }
+
+        .no-changes {
+            background: rgba(66, 153, 225, 0.2);
+            color: #63b3ed;
+            border: 1px solid rgba(66, 153, 225, 0.3);
+            padding: 24px;
+            text-align: center;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            backdrop-filter: blur(10px);
+        }
+
+        .content-area {
+            padding: 24px 32px;
+            background: #f7fafc;
+        }
+
+        .change-group {
+            margin-bottom: 24px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            overflow: hidden;
+        }
+
+        .change-group-header {
+            padding: 16px 20px;
+            font-weight: 600;
+            color: #2d3748;
+            font-size: 0.95rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .change-group-header.destroy-group {
+            background: linear-gradient(90deg, #fed7d7, #ffffff);
+            border-left: 4px solid #f56565;
+        }
+
+        .change-group-header.replace-group {
+            background: linear-gradient(90deg, #fed7d7, #ffffff);
+            border-left: 4px solid #f56565;
+        }
+
+        .change-group-header.update-group {
+            background: linear-gradient(90deg, #fef5e7, #ffffff);
+            border-left: 4px solid #ed8936;
+        }
+
+        .change-group-header.create-group {
+            background: linear-gradient(90deg, #c6f6d5, #ffffff);
+            border-left: 4px solid #48bb78;
+        }
+
+        .resource-changes {
+            margin-top: 0;
+        }
+
+        .resource-card {
+            border-bottom: 1px solid #e2e8f0;
+            transition: all 0.3s ease;
+            box-shadow: none;
+        }
+
+        .resource-card:last-child {
+            border-bottom: none;
+        }
+
+        .resource-card:hover {
+            background: #f7fafc;
+        }
+
+        .resource-header {
+            padding: 16px 20px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.2s ease;
+        }
+
+        .resource-header:hover {
+            background: #f7fafc;
+        }
+
+        .resource-header.expanded {
+            background: #e9ecef;
+            box-shadow: 0 4px 24px 0 rgba(0, 0, 0, 0.10), 0 1.5px 6px 0 rgba(0, 0, 0, 0.08);
+            z-index: 2;
+        }
+
+        .change-create .resource-header {
+            border-left: 3px solid #48bb78;
+        }
+
+        .change-update .resource-header {
+            border-left: 3px solid #ed8936;
+        }
+
+        .change-delete .resource-header {
+            border-left: 3px solid #f56565;
+        }
+
+        .change-replace .resource-header {
+            border-left: 3px solid #f56565;
+        }
+
+        .resource-header-main {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex: 1;
+        }
+
+        .resource-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .resource-icon {
+            font-size: 1.1rem;
+        }
+
+        .resource-address {
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: #4a5568;
+        }
+
+        .resource-name-highlight {
+            background: #e2e8f0;
+            color: #2d3748;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 600;
+            border-left: 2px solid #3182ce;
+            border-right: 2px solid #3182ce;
+        }
+
+        .change-create .resource-name-highlight {
+            background: #c6f6d5;
+            color: #22543d;
+            border-left-color: #48bb78;
+            border-right-color: #48bb78;
+        }
+
+        .change-update .resource-name-highlight {
+            background: #fef5e7;
+            color: #744210;
+            border-left-color: #ed8936;
+            border-right-color: #ed8936;
+        }
+
+        .change-delete .resource-name-highlight {
+            background: #fed7d7;
+            color: #742a2a;
+            border-left-color: #f56565;
+            border-right-color: #f56565;
+        }
+
+        .change-replace .resource-name-highlight {
+            background: #fed7d7;
+            color: #742a2a;
+            border-left-color: #f56565;
+            border-right-color: #f56565;
+        }
+
+        .change-type {
+            background: #4a5568;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+
+        .change-create .change-type {
+            background: #48bb78;
+        }
+
+        .change-update .change-type {
+            background: #ed8936;
+        }
+
+        .change-delete .change-type {
+            background: #f56565;
+        }
+
+        .change-replace .change-type {
+            background: #f56565;
+        }
+
+        .expand-indicator {
+            font-size: 0.8rem;
+            transition: transform 0.3s ease;
+            color: #718096;
+        }
+
+        .expanded .expand-indicator {
+            transform: rotate(180deg);
+        }
+
+        .resource-content {
+            display: none;
+            padding: 0 20px 16px;
+            border-top: 1px solid #e2e8f0;
+            transition: all 0.3s ease;
+            opacity: 0;
+            max-height: 0;
+            overflow: hidden;
+            background: transparent;
+        }
+
+        .resource-content.expanded {
+            display: block;
+            opacity: 1;
+            max-height: 2000px;
+            background: #e5e7eb;
+            box-shadow: 0 12px 32px 0 rgba(0, 0, 0, 0.14), 0 4px 12px 0 rgba(0, 0, 0, 0.10);
+            z-index: 1;
+            border-left: 3px solid #888;
+        }
+
+        .resource-content.collapsing {
+            opacity: 0;
+            max-height: 0;
+            transition: opacity 0.5s ease, max-height 0.5s ease;
+        }
+
+        .resource-diff {
+            background: #1a202c;
+            color: #e2e8f0;
+            padding: 16px;
+            border-radius: 8px;
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+            font-size: 0.85rem;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            overflow-x: auto;
+            margin-bottom: 12px;
+            border: 1px solid #2d3748;
+        }
+
+        /* Terraform syntax highlighting */
+        .tf-add {
+            color: #68d391;
+        }
+
+        .tf-delete {
+            color: #fc8181;
+        }
+
+        .tf-change {
+            color: #f6ad55;
+        }
+
+        .tf-replace {
+            color: #f687b3;
+        }
+
+        .tf-sensitive {
+            color: #b794f6;
+            font-style: italic;
+        }
+
+        .tf-computed {
+            color: #81e6d9;
+            font-style: italic;
+        }
+
+        .tf-forces-replacement {
+            color: #fc8181;
+            font-weight: bold;
+            background-color: rgba(252, 129, 129, 0.1);
+            padding: 1px 3px;
+            border-radius: 3px;
+        }
+
+        .review-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .btn-approve {
+            background: linear-gradient(135deg, #48bb78, #38a169);
+            color: white;
+        }
+
+        .btn-approve:hover {
+            background: linear-gradient(135deg, #38a169, #2f855a);
+        }
+
+        .btn-needs-changes {
+            background: linear-gradient(135deg, #f56565, #e53e3e);
+            color: white;
+        }
+
+        .btn-needs-changes:hover {
+            background: linear-gradient(135deg, #e53e3e, #c53030);
+        }
+
+        .btn-next {
+            background: linear-gradient(135deg, #3182ce, #2b6cb0);
+            color: white;
+        }
+
+        .btn-next:hover {
+            background: linear-gradient(135deg, #2b6cb0, #2c5282);
+        }
+
+        .btn-clear {
+            background: linear-gradient(135deg, #718096, #4a5568);
+            color: white;
+        }
+
+        .btn-clear:hover {
+            background: linear-gradient(135deg, #4a5568, #2d3748);
+        }
+
+        .btn-clear-all {
+            background: linear-gradient(135deg, #ed8936, #dd6b20);
+            color: white;
+            font-size: 0.75rem;
+            padding: 6px 12px;
+        }
+
+        .btn-clear-all:hover {
+            background: linear-gradient(135deg, #dd6b20, #c05621);
+        }
+
+        .btn.reviewed {
+            background: #718096;
+            cursor: default;
+        }
+
+        .btn.reviewed:hover {
+            transform: none;
+            box-shadow: none;
+        }
+
+        .review-status {
+            display: inline-block;
+            margin-right: 8px;
+            font-size: 1.1rem;
+        }
+
+        .status-approved {
+            color: #48bb78;
+        }
+
+        .status-needs-changes {
+            color: #f56565;
+        }
+
+        .full-plan-section {
+            margin-top: 24px;
+            background: #f3f4f6;
+            border-left: 4px solid #888;
+            box-shadow: 0 8px 24px 0 rgba(0, 0, 0, 0.10), 0 2px 8px 0 rgba(0, 0, 0, 0.08);
+            overflow: hidden;
+        }
+
+        .full-plan-header {
+            padding: 16px 20px;
+            cursor: pointer;
+            background: #f7fafc;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background-color 0.2s;
+            color: #222;
+            font-weight: 700;
+        }
+
+        .full-plan-header:hover {
+            background-color: #edf2f7;
+        }
+
+        .full-plan-content {
+            display: none;
+            padding: 20px;
+        }
+
+        .full-plan-content.expanded {
+            display: block;
+        }
+
+        .full-plan-text {
+            background: #1a202c;
+            color: #e2e8f0;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+            font-size: 0.8rem;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            overflow-x: auto;
+            max-height: 500px;
+            overflow-y: auto;
+            border: 1px solid #2d3748;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 0;
+            }
+
+            .container {
+                border-radius: 0;
+            }
+
+            .header {
+                padding: 6px 16px;
+            }
+
+            .header h1 {
+                font-size: 1.2rem;
+                gap: 12px;
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .header-counts {
+                gap: 6px;
+                order: 2;
+            }
+
+            .header-progress {
+                order: 3;
+                margin-left: 0;
+                margin-top: 8px;
+                width: 100%;
+                justify-content: space-between;
+            }
+
+            .header-progress-bar {
+                width: 80px;
+            }
+
+            .header-count-item {
+                padding: 3px 6px;
+                font-size: 0.75rem;
+            }
+
+            .content-area {
+                padding: 16px 20px;
+            }
+
+            .summary {
+                flex-direction: column;
+            }
+
+            .resource-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
+            }
+
+            .review-actions {
+                flex-direction: column;
+            }
+
+            .plan-info {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>
+                <div class="header-title">🔍 Terraform Plan Review</div>
+                {% if plan.has_changes %}
+                <div class="header-counts">
+                    {% if plan.to_destroy > 0 %}
+                    <button class="header-count-item header-count-destroy" onclick="scrollToSection('destroy-group')">
+                        <span class="header-count-icon">❌</span> {{ plan.to_destroy }} to destroy
+                    </button>
+                    {% endif %}
+
+                    {% if plan.to_replace > 0 %}
+                    <button class="header-count-item header-count-replace" onclick="scrollToSection('replace-group')">
+                        <span class="header-count-icon">🔄</span> {{ plan.to_replace }} to replace
+                    </button>
+                    {% endif %}
+
+                    {% if plan.to_change > 0 %}
+                    <button class="header-count-item header-count-change" onclick="scrollToSection('update-group')">
+                        <span class="header-count-icon">📝</span> {{ plan.to_change }} to change
+                    </button>
+                    {% endif %}
+
+                    {% if plan.to_add > 0 %}
+                    <button class="header-count-item header-count-add" onclick="scrollToSection('create-group')">
+                        <span class="header-count-icon">➕</span> {{ plan.to_add }} to add
+                    </button>
+                    {% endif %}
+                </div>
+                <div class="header-progress">
+                    <div class="header-progress-text" id="headerProgressText">0 of {{ plan.resource_changes|length }}
+                        reviewed</div>
+                    <div class="header-progress-bar">
+                        <div class="header-progress-fill" id="headerProgressFill"></div>
+                    </div>
+                    <div class="header-progress-percent" id="headerProgressPercent">0%</div>
+                    <button class="header-count-item" onclick="clearAllReviews()"
+                        title="Clear all review states for this plan"
+                        style="background: rgba(246, 173, 85, 0.7); color: #2d3748; border-color: rgba(237, 137, 54, 0.7); padding: 2px 6px; font-weight: 700;">
+                        <span class="header-count-icon">🗑️</span>
+                    </button>
+                </div>
+                {% endif %}
+            </h1>
+
+            {% if not plan.has_changes %}
+            <div class="no-changes">
+                ✅ No changes. Infrastructure is up-to-date.
+            </div>
+            {% endif %}
+        </div>
+
+        {% if plan.has_changes %}
+        <div class="content-area">
+            <div class="resource-changes">
+                {% set destroy_resources = [] %}
+                {% set replace_resources = [] %}
+                {% set update_resources = [] %}
+                {% set create_resources = [] %}
+
+                {% for resource in plan.resource_changes %}
+                {% if resource.change_type.value == 'delete' %}
+                {% set _ = destroy_resources.append(resource) %}
+                {% elif resource.change_type.value == 'replace' %}
+                {% set _ = replace_resources.append(resource) %}
+                {% elif resource.change_type.value == 'update' %}
+                {% set _ = update_resources.append(resource) %}
+                {% elif resource.change_type.value == 'create' %}
+                {% set _ = create_resources.append(resource) %}
+                {% endif %}
+                {% endfor %}
+
+                {% set all_grouped_resources = [] %}
+                {% set resource_index = [0] %}
+
+                {% if destroy_resources %}
+                <div class="change-group">
+                    <div class="change-group-header destroy-group">
+                        ❌ Resources to Destroy ({{ destroy_resources|length }})
+                    </div>
+                    {% for resource in destroy_resources %}
+                    {% set _ = all_grouped_resources.append((resource, resource_index[0])) %}
+                    <div class="resource-card {{ resource.change_type|change_type_class }}"
+                        data-resource-index="{{ resource_index[0] }}">
+                        <div class="resource-header" onclick="toggleResource({{ resource_index[0] }})">
+                            <div class="resource-header-main">
+                                <div class="resource-title">
+                                    <div class="review-status" id="status-{{ resource_index[0] }}"
+                                        style="display: none;">
+                                    </div>
+                                    <span class="resource-address">{{
+                                        resource.resource_address|highlight_resource_name|safe
+                                        }}</span>
+                                </div>
+                            </div>
+                            <div class="expand-indicator">▼</div>
+                        </div>
+
+                        <div class="resource-content" id="content-{{ resource_index[0] }}">
+                            <div class="resource-diff">{{
+                                plan.raw_plan|extract_resource_diff(resource)|colorize_terraform|safe }}</div>
+
+                            <div class="review-actions" id="actions-{{ resource_index[0] }}">
+                                <button class="btn btn-approve"
+                                    onclick="markAsReviewed({{ resource_index[0] }}, 'approved')">
+                                    ✅ Approve
+                                </button>
+                                <button class="btn btn-needs-changes"
+                                    onclick="markAsReviewed({{ resource_index[0] }}, 'needs-changes')">
+                                    ⚠️ Needs Changes
+                                </button>
+                                <button class="btn btn-next" onclick="goToNext({{ resource_index[0] }})">
+                                    ⏭️ Next Change
+                                </button>
+                                <button class="btn btn-clear" onclick="clearReview({{ resource_index[0] }})"
+                                    style="display: none;">
+                                    🔄 Clear Review
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    {% set _ = resource_index.append(resource_index.pop() + 1) %}
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                {% if replace_resources %}
+                <div class="change-group">
+                    <div class="change-group-header replace-group">
+                        🔄 Resources to Replace ({{ replace_resources|length }})
+                    </div>
+                    {% for resource in replace_resources %}
+                    {% set _ = all_grouped_resources.append((resource, resource_index[0])) %}
+                    <div class="resource-card {{ resource.change_type|change_type_class }}"
+                        data-resource-index="{{ resource_index[0] }}">
+                        <div class="resource-header" onclick="toggleResource({{ resource_index[0] }})">
+                            <div class="resource-header-main">
+                                <div class="resource-title">
+                                    <div class="review-status" id="status-{{ resource_index[0] }}"
+                                        style="display: none;">
+                                    </div>
+                                    <span class="resource-address">{{
+                                        resource.resource_address|highlight_resource_name|safe
+                                        }}</span>
+                                </div>
+                            </div>
+                            <div class="expand-indicator">▼</div>
+                        </div>
+
+                        <div class="resource-content" id="content-{{ resource_index[0] }}">
+                            <div class="resource-diff">{{
+                                plan.raw_plan|extract_resource_diff(resource)|colorize_terraform|safe }}</div>
+
+                            <div class="review-actions" id="actions-{{ resource_index[0] }}">
+                                <button class="btn btn-approve"
+                                    onclick="markAsReviewed({{ resource_index[0] }}, 'approved')">
+                                    ✅ Approve
+                                </button>
+                                <button class="btn btn-needs-changes"
+                                    onclick="markAsReviewed({{ resource_index[0] }}, 'needs-changes')">
+                                    ⚠️ Needs Changes
+                                </button>
+                                <button class="btn btn-next" onclick="goToNext({{ resource_index[0] }})">
+                                    ⏭️ Next Change
+                                </button>
+                                <button class="btn btn-clear" onclick="clearReview({{ resource_index[0] }})"
+                                    style="display: none;">
+                                    🔄 Clear Review
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    {% set _ = resource_index.append(resource_index.pop() + 1) %}
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                {% if update_resources %}
+                <div class="change-group">
+                    <div class="change-group-header update-group">
+                        📝 Resources to Update ({{ update_resources|length }})
+                    </div>
+                    {% for resource in update_resources %}
+                    {% set _ = all_grouped_resources.append((resource, resource_index[0])) %}
+                    <div class="resource-card {{ resource.change_type|change_type_class }}"
+                        data-resource-index="{{ resource_index[0] }}">
+                        <div class="resource-header" onclick="toggleResource({{ resource_index[0] }})">
+                            <div class="resource-header-main">
+                                <div class="resource-title">
+                                    <div class="review-status" id="status-{{ resource_index[0] }}"
+                                        style="display: none;">
+                                    </div>
+                                    <span class="resource-address">{{
+                                        resource.resource_address|highlight_resource_name|safe
+                                        }}</span>
+                                </div>
+                            </div>
+                            <div class="expand-indicator">▼</div>
+                        </div>
+
+                        <div class="resource-content" id="content-{{ resource_index[0] }}">
+                            <div class="resource-diff">{{
+                                plan.raw_plan|extract_resource_diff(resource)|colorize_terraform|safe }}</div>
+
+                            <div class="review-actions" id="actions-{{ resource_index[0] }}">
+                                <button class="btn btn-approve"
+                                    onclick="markAsReviewed({{ resource_index[0] }}, 'approved')">
+                                    ✅ Approve
+                                </button>
+                                <button class="btn btn-needs-changes"
+                                    onclick="markAsReviewed({{ resource_index[0] }}, 'needs-changes')">
+                                    ⚠️ Needs Changes
+                                </button>
+                                <button class="btn btn-next" onclick="goToNext({{ resource_index[0] }})">
+                                    ⏭️ Next Change
+                                </button>
+                                <button class="btn btn-clear" onclick="clearReview({{ resource_index[0] }})"
+                                    style="display: none;">
+                                    🔄 Clear Review
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    {% set _ = resource_index.append(resource_index.pop() + 1) %}
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                {% if create_resources %}
+                <div class="change-group">
+                    <div class="change-group-header create-group">
+                        ➕ Resources to Create ({{ create_resources|length }})
+                    </div>
+                    {% for resource in create_resources %}
+                    {% set _ = all_grouped_resources.append((resource, resource_index[0])) %}
+                    <div class="resource-card {{ resource.change_type|change_type_class }}"
+                        data-resource-index="{{ resource_index[0] }}">
+                        <div class="resource-header" onclick="toggleResource({{ resource_index[0] }})">
+                            <div class="resource-header-main">
+                                <div class="resource-title">
+                                    <div class="review-status" id="status-{{ resource_index[0] }}"
+                                        style="display: none;">
+                                    </div>
+                                    <span class="resource-address">{{
+                                        resource.resource_address|highlight_resource_name|safe
+                                        }}</span>
+                                </div>
+                            </div>
+                            <div class="expand-indicator">▼</div>
+                        </div>
+
+                        <div class="resource-content" id="content-{{ resource_index[0] }}">
+                            <div class="resource-diff">{{
+                                plan.raw_plan|extract_resource_diff(resource)|colorize_terraform|safe }}</div>
+
+                            <div class="review-actions" id="actions-{{ resource_index[0] }}">
+                                <button class="btn btn-approve"
+                                    onclick="markAsReviewed({{ resource_index[0] }}, 'approved')">
+                                    ✅ Approve
+                                </button>
+                                <button class="btn btn-needs-changes"
+                                    onclick="markAsReviewed({{ resource_index[0] }}, 'needs-changes')">
+                                    ⚠️ Needs Changes
+                                </button>
+                                <button class="btn btn-next" onclick="goToNext({{ resource_index[0] }})">
+                                    ⏭️ Next Change
+                                </button>
+                                <button class="btn btn-clear" onclick="clearReview({{ resource_index[0] }})"
+                                    style="display: none;">
+                                    🔄 Clear Review
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    {% set _ = resource_index.append(resource_index.pop() + 1) %}
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Full Plan Text Section -->
+            <div class="full-plan-section">
+                <div class="full-plan-header" onclick="toggleFullPlan()">
+                    <div>
+                        <h3>📄 Full Terraform Plan Output</h3>
+                        <p style="font-size: 0.85rem; color: #718096; margin-top: 4px;">Click to view the complete
+                            terraform plan
+                            output for reference</p>
+                    </div>
+                    <div class="expand-indicator" id="fullPlanIndicator">▼</div>
+                </div>
+
+                <div class="full-plan-content" id="fullPlanContent">
+                    <div class="full-plan-text">{{ plan.raw_plan|colorize_terraform_full|safe }}</div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <script>
+        // JavaScript for interactivity and persistent state
+        let reviewedResources = new Map(); // Track review status
+        let totalResources = {{ plan.resource_changes| length }};
+        let planId = '';
+        let planContent = `{{ plan.raw_plan|escapejs }}`;
+
+        // Generate a simple hash for the plan content
+        function generatePlanHash(content) {
+            let hash = 0;
+            for (let i = 0; i < content.length; i++) {
+                const char = content.charCodeAt(i);
+                hash = ((hash << 5) - hash) + char;
+                hash = hash & hash; // Convert to 32-bit integer
+            }
+            return Math.abs(hash).toString(16).toUpperCase().substring(0, 8);
+        }
+
+        // Save review state to localStorage
+        function saveReviewState() {
+            const state = {
+                reviewedResources: Object.fromEntries(reviewedResources),
+                timestamp: Date.now(),
+                totalResources: totalResources
+            };
+            localStorage.setItem(`tfreview_${planId}`, JSON.stringify(state));
+        }
+
+        // Load review state from localStorage
+        function loadReviewState() {
+            const saved = localStorage.getItem(`tfreview_${planId}`);
+            if (saved) {
+                try {
+                    const state = JSON.parse(saved);
+                    if (state.totalResources === totalResources) {
+                        reviewedResources = new Map(Object.entries(state.reviewedResources));
+                        return true;
+                    }
+                } catch (e) {
+                    console.warn('Failed to load review state:', e);
+                }
+            }
+            return false;
+        }
+
+        // Restore UI state from loaded data
+        function restoreUIState() {
+            reviewedResources.forEach((status, indexStr) => {
+                const index = parseInt(indexStr);
+                const statusElement = document.getElementById(`status-${index}`);
+                const actionsContainer = document.getElementById(`actions-${index}`);
+                const approveBtn = actionsContainer.children[0];
+                const needsChangesBtn = actionsContainer.children[1];
+                const clearBtn = actionsContainer.children[3];
+
+                // Update status display
+                statusElement.style.display = 'inline-block';
+                if (status === 'approved') {
+                    statusElement.textContent = '✅';
+                    statusElement.className = 'review-status status-approved';
+                } else if (status === 'needs-changes') {
+                    statusElement.textContent = '⚠️';
+                    statusElement.className = 'review-status status-needs-changes';
+                }
+
+                // Show clear button and hide approve/needs-changes buttons
+                approveBtn.style.display = 'none';
+                needsChangesBtn.style.display = 'none';
+                clearBtn.style.display = 'inline-block';
+            });
+
+            updateProgress();
+        }
+
+        // Clear all reviews for this plan
+        function clearAllReviews() {
+            if (confirm(`Clear all review states for this plan (${planId})?`)) {
+                localStorage.removeItem(`tfreview_${planId}`);
+                reviewedResources.clear();
+
+                // Reset all UI elements
+                for (let i = 0; i < totalResources; i++) {
+                    clearReview(i);
+                }
+
+                updateProgress();
+            }
+        }
+
+        // Get list of all stored plan IDs for debugging
+        function getStoredPlans() {
+            const plans = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && key.startsWith('tfreview_')) {
+                    plans.push(key.substring(9)); // Remove 'tfreview_' prefix
+                }
+            }
+            return plans;
+        }
+
+        function toggleResource(index) {
+            const content = document.getElementById(`content-${index}`);
+            const header = content.previousElementSibling;
+
+            if (content.classList.contains('expanded')) {
+                content.classList.remove('expanded');
+                header.classList.remove('expanded');
+            } else {
+                content.classList.add('expanded');
+                header.classList.add('expanded');
+            }
+        }
+
+        function markAsReviewed(index, status) {
+            // Always set the status (this will overwrite if it already exists)
+            // Ensure index is a string to prevent duplicate keys
+            reviewedResources.set(String(index), status);
+
+            const statusElement = document.getElementById(`status-${index}`);
+            const actionsContainer = document.getElementById(`actions-${index}`);
+            const approveBtn = actionsContainer.children[0];
+            const needsChangesBtn = actionsContainer.children[1];
+            const nextBtn = actionsContainer.children[2];
+            const clearBtn = actionsContainer.children[3];
+
+            // Update status display
+            statusElement.style.display = 'inline-block';
+            if (status === 'approved') {
+                statusElement.textContent = '✅';
+                statusElement.className = 'review-status status-approved';
+            } else if (status === 'needs-changes') {
+                statusElement.textContent = '⚠️';
+                statusElement.className = 'review-status status-needs-changes';
+            }
+
+            // Show clear button and hide approve/needs-changes buttons
+            approveBtn.style.display = 'none';
+            needsChangesBtn.style.display = 'none';
+            clearBtn.style.display = 'inline-block';
+
+            updateProgress();
+            saveReviewState(); // Save to localStorage
+
+            // If approved, improved sequence: collapse slowly → scroll → expand
+            if (status === 'approved') {
+                setTimeout(() => {
+                    // Start collapse with animation
+                    const content = document.getElementById(`content-${index}`);
+                    const header = content.previousElementSibling;
+
+                    content.classList.add('collapsing');
+                    header.classList.remove('expanded');
+
+                    // After collapse animation, scroll to next
+                    setTimeout(() => {
+                        content.classList.remove('expanded', 'collapsing');
+
+                        // Find and navigate to next unreviewed resource
+                        goToNextUnreviewed();
+                    }, 300); // Wait for collapse animation
+                }, 200); // Initial delay to show approval
+            }
+        }
+
+        function clearReview(index) {
+            // Remove the resource from reviewed resources
+            // Ensure index is a string to match the key format
+            reviewedResources.delete(String(index));
+
+            const statusElement = document.getElementById(`status-${index}`);
+            const actionsContainer = document.getElementById(`actions-${index}`);
+            const approveBtn = actionsContainer.children[0];
+            const needsChangesBtn = actionsContainer.children[1];
+            const clearBtn = actionsContainer.children[3];
+
+            // Hide status
+            statusElement.style.display = 'none';
+
+            // Show approve/needs-changes buttons and hide clear button
+            approveBtn.style.display = 'inline-block';
+            needsChangesBtn.style.display = 'inline-block';
+            clearBtn.style.display = 'none';
+
+            updateProgress();
+            saveReviewState(); // Save to localStorage
+        }
+
+        function goToNext(currentIndex) {
+            const nextIndex = currentIndex + 1;
+            if (nextIndex < totalResources) {
+                navigateToResource(nextIndex);
+            } else {
+                alert('You have reached the last change!');
+            }
+        }
+
+        function goToNextUnreviewed() {
+            for (let i = 0; i < totalResources; i++) {
+                if (!reviewedResources.has(String(i))) {
+                    navigateToResource(i);
+                    return;
+                }
+            }
+            // If all reviewed, just update progress (no popup)
+            if (reviewedResources.size === totalResources) {
+                updateProgress();
+            }
+        }
+
+        function navigateToResource(index) {
+            const card = document.querySelector(`[data-resource-index="${index}"]`);
+            const content = document.getElementById(`content-${index}`);
+            const header = content.previousElementSibling;
+
+            // Account for sticky header height
+            const headerHeight = document.querySelector('.header').offsetHeight;
+            const cardTop = card.getBoundingClientRect().top + window.scrollY - headerHeight - 10; // 10px extra padding
+
+            window.scrollTo({ top: cardTop, behavior: 'smooth' });
+
+            // Expand card after scroll
+            setTimeout(() => {
+                content.classList.add('expanded');
+                header.classList.add('expanded');
+            }, 600); // Wait for scroll to complete
+        }
+
+        function updateProgress() {
+            const progressFill = document.getElementById('headerProgressFill');
+            const progressText = document.getElementById('headerProgressText');
+            const progressPercent = document.getElementById('headerProgressPercent');
+
+            const reviewedCount = reviewedResources.size;
+            const percentage = totalResources > 0 ? (reviewedCount / totalResources) * 100 : 0;
+            progressFill.style.width = `${percentage}%`;
+            progressText.textContent = `${reviewedCount} of ${totalResources} reviewed`;
+            progressPercent.textContent = `${Math.round(percentage)}%`;
+
+            // Count approved vs needs-changes
+            let approvedCount = 0;
+            let needsChangesCount = 0;
+            reviewedResources.forEach((status) => {
+                if (status === 'approved') {
+                    approvedCount++;
+                } else if (status === 'needs-changes') {
+                    needsChangesCount++;
+                }
+            });
+
+            // Create segmented progress bar based on review status
+            if (reviewedCount > 0) {
+                // Calculate split within the filled portion
+                const approvedSplit = (approvedCount / reviewedCount) * 100;
+                const needsChangesSplit = 100; // always ends at 100%
+
+                if (needsChangesCount > 0 && approvedCount > 0) {
+                    // Both approved and needs-changes: segmented bar within filled portion
+                    progressFill.style.background = `linear-gradient(90deg,
+                        #48bb78 0%, #48bb78 ${approvedSplit}%,
+                        #f6ad55 ${approvedSplit}%, #f6ad55 100%
+                    )`;
+                } else if (needsChangesCount > 0) {
+                    // Only needs-changes: yellow bar
+                    progressFill.style.background = 'linear-gradient(90deg, #f6ad55 0%, #f6ad55 100%)';
+                } else if (approvedCount > 0) {
+                    // Only approved: green bar
+                    progressFill.style.background = 'linear-gradient(90deg, #48bb78 0%, #38a169 100%)';
+                }
+
+                // Update completion message
+                if (reviewedCount === totalResources && totalResources > 0) {
+                    if (needsChangesCount > 0) {
+                        progressText.innerHTML = `⚠️ All ${totalResources} reviewed - ${needsChangesCount} need changes!`;
+                    } else {
+                        progressText.innerHTML = `🎉 All ${totalResources} approved!`;
+                    }
+                }
+            } else {
+                // Default blue when no reviews yet
+                progressFill.style.background = 'linear-gradient(90deg, #3182ce, #2b6cb0)';
+            }
+        }
+
+        function toggleFullPlan() {
+            const content = document.getElementById('fullPlanContent');
+            const indicator = document.getElementById('fullPlanIndicator');
+
+            if (content.classList.contains('expanded')) {
+                content.classList.remove('expanded');
+                indicator.style.transform = 'rotate(0deg)';
+            } else {
+                content.classList.add('expanded');
+                indicator.style.transform = 'rotate(180deg)';
+            }
+        }
+
+        function scrollToSection(sectionClass) {
+            const section = document.querySelector(`.${sectionClass}`);
+            if (section) {
+                // Account for sticky header height
+                const headerHeight = document.querySelector('.header').offsetHeight;
+                const sectionTop = section.offsetTop - headerHeight - 20; // 20px extra padding
+
+                window.scrollTo({
+                    top: sectionTop,
+                    behavior: 'smooth'
+                });
+            }
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function () {
+            // Generate plan ID from content hash
+            planId = generatePlanHash(planContent);
+
+            // Try to load existing review state
+            const wasRestored = loadReviewState();
+            if (wasRestored) {
+                console.log(`Review state restored for plan ${planId}`);
+                restoreUIState();
+            } else {
+                console.log(`Starting new review for plan ${planId}`);
+            }
+
+            // Debug: log stored plans
+            console.log('Stored plan reviews:', getStoredPlans());
+
+            // Initialize progress
+            updateProgress();
+
+            // Initialize - expand first unreviewed resource
+            if (totalResources > 0) {
+                let firstUnreviewed = 0;
+                while (firstUnreviewed < totalResources && reviewedResources.has(String(firstUnreviewed))) {
+                    firstUnreviewed++;
+                }
+                if (firstUnreviewed < totalResources) {
+                    toggleResource(firstUnreviewed);
+                } else {
+                    toggleResource(0); // If all reviewed, show first one
+                }
+            }
+        });
+    </script>
+</body>
+
+</html>

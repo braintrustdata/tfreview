@@ -53,6 +53,7 @@ class PlanSummary:
     to_add: int
     to_change: int
     to_destroy: int
+    to_replace: int
     resource_changes: List[ResourceChange]
     output_changes: List[OutputChange]
     has_changes: bool
@@ -64,7 +65,9 @@ class TerraformPlanParser:
 
     def __init__(self):
         # Regex patterns for parsing
-        self.change_header_pattern = re.compile(r"^  # (.+?) will be (.+?)$")
+        self.change_header_pattern = re.compile(
+            r"^  # (.+?) will be (.+?)$|^  # (.+?) must be (.+?)$"
+        )
         self.resource_address_pattern = re.compile(r"^(.+?)\.(.+?)(?:\[(.+?)\])?$")
         self.summary_pattern = re.compile(
             r"Plan: (\d+) to add, (\d+) to change, (\d+) to destroy"
@@ -74,6 +77,10 @@ class TerraformPlanParser:
         )
         self.attribute_change_pattern = re.compile(
             r"^  ([~+-])\s*(.+?)\s*=\s*(.+?)(?:\s*->\s*(.+?))?$"
+        )
+        # Add pattern for replacement indicators
+        self.replacement_pattern = re.compile(
+            r"^  ([+-]/[+-])\s*(.+?)\s*=\s*(.+?)(?:\s*->\s*(.+?))?$"
         )
 
     def parse(self, plan_text: str) -> PlanSummary:
@@ -86,6 +93,7 @@ class TerraformPlanParser:
                 to_add=0,
                 to_change=0,
                 to_destroy=0,
+                to_replace=0,
                 resource_changes=[],
                 output_changes=[],
                 has_changes=False,
@@ -94,7 +102,7 @@ class TerraformPlanParser:
 
         resource_changes = []
         output_changes = []
-        to_add = to_change = to_destroy = 0
+        to_add = to_change = to_destroy = to_replace = 0
 
         i = 0
         while i < len(lines):
@@ -103,8 +111,18 @@ class TerraformPlanParser:
             # Check for change header
             header_match = self.change_header_pattern.match(line)
             if header_match:
-                resource_address = header_match.group(1)
-                action = header_match.group(2)
+                # Handle both "will be" and "must be" patterns
+                if header_match.group(1) and header_match.group(2):
+                    # "will be" pattern
+                    resource_address = header_match.group(1)
+                    action = header_match.group(2)
+                elif header_match.group(3) and header_match.group(4):
+                    # "must be" pattern
+                    resource_address = header_match.group(3)
+                    action = header_match.group(4)
+                else:
+                    i += 1
+                    continue
 
                 # Parse the resource change block
                 resource_change, end_index = self._parse_resource_change(
@@ -121,17 +139,15 @@ class TerraformPlanParser:
                     elif resource_change.change_type == ChangeType.DELETE:
                         to_destroy += 1
                     elif resource_change.change_type == ChangeType.REPLACE:
-                        to_add += 1
-                        to_destroy += 1
+                        to_replace += 1
 
                 i = end_index
             else:
                 # Check for summary line
                 summary_match = self.summary_pattern.search(line)
                 if summary_match:
-                    to_add = int(summary_match.group(1))
-                    to_change = int(summary_match.group(2))
-                    to_destroy = int(summary_match.group(3))
+                    # Do not overwrite our own counters with the summary line
+                    pass
 
                 # Check for output changes
                 if line.strip().startswith("Outputs:"):
@@ -143,6 +159,7 @@ class TerraformPlanParser:
             to_add=to_add,
             to_change=to_change,
             to_destroy=to_destroy,
+            to_replace=to_replace,
             resource_changes=resource_changes,
             output_changes=output_changes,
             has_changes=len(resource_changes) > 0 or len(output_changes) > 0,
@@ -183,6 +200,8 @@ class TerraformPlanParser:
 
             # Parse attribute changes
             attr_match = self.attribute_change_pattern.match(line)
+            replacement_match = self.replacement_pattern.match(line)
+
             if attr_match:
                 change_op = attr_match.group(1)
                 attr_name = attr_match.group(2)
@@ -216,6 +235,41 @@ class TerraformPlanParser:
                     attributes_deleted.append(attr_change)
                 elif change_op == "~":
                     attributes_changed.append(attr_change)
+            elif replacement_match:
+                # Handle replacement pattern (-/+ or +/-)
+                change_op = replacement_match.group(1)
+                attr_name = replacement_match.group(2)
+                old_value = (
+                    replacement_match.group(3)
+                    if len(replacement_match.groups()) >= 3
+                    else None
+                )
+                new_value = (
+                    replacement_match.group(4)
+                    if len(replacement_match.groups()) >= 4
+                    else None
+                )
+
+                # Check for sensitive/computed values
+                is_sensitive = "(sensitive value)" in line
+                is_computed = "<computed>" in line or "(known after apply)" in line
+
+                if is_sensitive:
+                    has_sensitive = True
+                if is_computed:
+                    has_computed = True
+
+                attr_change = AttributeChange(
+                    name=attr_name,
+                    old_value=old_value,
+                    new_value=new_value,
+                    is_sensitive=is_sensitive,
+                    is_computed=is_computed,
+                )
+
+                # For replacements, we add to both deleted and added
+                attributes_deleted.append(attr_change)
+                attributes_added.append(attr_change)
 
             i += 1
 
@@ -237,13 +291,17 @@ class TerraformPlanParser:
     def _parse_change_type(self, action: str) -> ChangeType:
         """Parse the action string to determine change type."""
         action_lower = action.lower()
-        if "created" in action_lower:
+        if "created" in action_lower or "create" in action_lower:
             return ChangeType.CREATE
-        elif "updated" in action_lower or "modified" in action_lower:
+        elif (
+            "updated" in action_lower
+            or "modified" in action_lower
+            or "update" in action_lower
+        ):
             return ChangeType.UPDATE
-        elif "destroyed" in action_lower:
+        elif "destroyed" in action_lower or "destroy" in action_lower:
             return ChangeType.DELETE
-        elif "replaced" in action_lower:
+        elif "replaced" in action_lower or "replace" in action_lower:
             return ChangeType.REPLACE
         else:
             return ChangeType.NO_OP
