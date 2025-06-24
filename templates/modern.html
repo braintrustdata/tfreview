@@ -549,30 +549,29 @@
         }
 
         .resource-content {
-            display: none;
             padding: 0 20px 16px;
             border-top: 1px solid #e2e8f0;
-            transition: all 0.3s ease;
             opacity: 0;
             max-height: 0;
             overflow: hidden;
             background: transparent;
+            transition: opacity 0.3s ease, max-height 0.3s ease;
         }
 
         .resource-content.expanded {
-            display: block;
             opacity: 1;
-            max-height: 2000px;
+            max-height: 10000px;
             background: #e5e7eb;
             box-shadow: 0 12px 32px 0 rgba(0, 0, 0, 0.14), 0 4px 12px 0 rgba(0, 0, 0, 0.10);
-            z-index: 1;
+            z-index: 3;
             border-left: 3px solid #888;
         }
 
         .resource-content.collapsing {
             opacity: 0;
             max-height: 0;
-            transition: opacity 0.5s ease, max-height 0.5s ease;
+            transition: opacity 0.3s ease, max-height 0.3s ease;
+            overflow: hidden;
         }
 
         .resource-diff {
@@ -1190,6 +1189,13 @@
                 const index = parseInt(indexStr);
                 const statusElement = document.getElementById(`status-${index}`);
                 const actionsContainer = document.getElementById(`actions-${index}`);
+
+                // Ensure all buttons are available before accessing them
+                if (!actionsContainer || actionsContainer.children.length < 4) {
+                    console.warn(`Actions container not found or incomplete for resource ${index}`);
+                    return;
+                }
+
                 const approveBtn = actionsContainer.children[0];
                 const needsChangesBtn = actionsContainer.children[1];
                 const clearBtn = actionsContainer.children[3];
@@ -1200,20 +1206,18 @@
                 if (status === 'approved') {
                     statusElement.textContent = '✅';
                     statusElement.className = 'review-status status-approved';
-                    // Add approved class to resource card
-                    resourceCard.classList.add('approved');
-                    resourceCard.classList.remove('needs-changes');
+                    // Remove approved class highlighting
+                    resourceCard.classList.remove('approved', 'needs-changes');
                 } else if (status === 'needs-changes') {
                     statusElement.textContent = '⚠️';
                     statusElement.className = 'review-status status-needs-changes';
-                    // Add needs-changes class to resource card
-                    resourceCard.classList.add('needs-changes');
-                    resourceCard.classList.remove('approved');
+                    // Remove needs-changes class highlighting
+                    resourceCard.classList.remove('approved', 'needs-changes');
                 }
 
-                // Show clear button and hide approve/needs-changes buttons
-                approveBtn.style.display = 'none';
-                needsChangesBtn.style.display = 'none';
+                // Ensure all buttons are visible and properly styled
+                approveBtn.style.display = 'inline-block';
+                needsChangesBtn.style.display = 'inline-block';
                 clearBtn.style.display = 'inline-block';
             });
 
@@ -1255,8 +1259,14 @@
                 content.classList.remove('expanded');
                 header.classList.remove('expanded');
             } else {
-                content.classList.add('expanded');
-                header.classList.add('expanded');
+                // Use requestAnimationFrame to ensure DOM is ready
+                requestAnimationFrame(() => {
+                    content.classList.add('expanded');
+                    header.classList.add('expanded');
+
+                    // Force a reflow to ensure the expanded state is applied
+                    content.offsetHeight;
+                });
             }
         }
 
@@ -1267,6 +1277,13 @@
 
             const statusElement = document.getElementById(`status-${index}`);
             const actionsContainer = document.getElementById(`actions-${index}`);
+
+            // Ensure all buttons are available before accessing them
+            if (!actionsContainer || actionsContainer.children.length < 4) {
+                console.error(`Actions container not found or incomplete for resource ${index}`);
+                return;
+            }
+
             const approveBtn = actionsContainer.children[0];
             const needsChangesBtn = actionsContainer.children[1];
             const nextBtn = actionsContainer.children[2];
@@ -1278,20 +1295,16 @@
             if (status === 'approved') {
                 statusElement.textContent = '✅';
                 statusElement.className = 'review-status status-approved';
-                // Add approved class to resource card
-                resourceCard.classList.add('approved');
-                resourceCard.classList.remove('needs-changes');
+                // Remove approved class highlighting
+                resourceCard.classList.remove('approved', 'needs-changes');
             } else if (status === 'needs-changes') {
                 statusElement.textContent = '⚠️';
                 statusElement.className = 'review-status status-needs-changes';
-                // Add needs-changes class to resource card
-                resourceCard.classList.add('needs-changes');
-                resourceCard.classList.remove('approved');
+                // Remove needs-changes class highlighting
+                resourceCard.classList.remove('approved', 'needs-changes');
             }
 
-            // Show clear button and hide approve/needs-changes buttons
-            approveBtn.style.display = 'none';
-            needsChangesBtn.style.display = 'none';
+            // Only show clear button, do not hide approve/needs-changes buttons
             clearBtn.style.display = 'inline-block';
 
             updateProgress();
@@ -1325,6 +1338,13 @@
 
             const statusElement = document.getElementById(`status-${index}`);
             const actionsContainer = document.getElementById(`actions-${index}`);
+
+            // Ensure all buttons are available before accessing them
+            if (!actionsContainer || actionsContainer.children.length < 4) {
+                console.error(`Actions container not found or incomplete for resource ${index}`);
+                return;
+            }
+
             const approveBtn = actionsContainer.children[0];
             const needsChangesBtn = actionsContainer.children[1];
             const clearBtn = actionsContainer.children[3];
@@ -1380,8 +1400,13 @@
 
             // Expand card after scroll
             setTimeout(() => {
-                content.classList.add('expanded');
-                header.classList.add('expanded');
+                requestAnimationFrame(() => {
+                    content.classList.add('expanded');
+                    header.classList.add('expanded');
+
+                    // Force a reflow to ensure the expanded state is applied
+                    content.offsetHeight;
+                });
             }, 600); // Wait for scroll to complete
         }
 
