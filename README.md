@@ -15,7 +15,6 @@ https://github.com/user-attachments/assets/a7897be5-be19-42dd-bb01-26ed9548ddf8
 - **Collapsible Resource Views**: Organize changes with expandable sections for each resource
 - **Review Tracking**: Mark resources as approved or needing changes with progress tracking (browser local)
 - **Syntax Highlighting**: Color-coded terraform diff output for easy reading
-- **JSON Export**: Export parsed plan data as JSON for integration with other tools
 
 ## Installation 📦
 
