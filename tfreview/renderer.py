@@ -176,7 +176,7 @@ class HTMLRenderer:
         return "\n".join(diff_lines)
 
     def create_standalone_html(
-        self, plan_summary: PlanSummary, template_name: str = "standalone.html"
+        self, plan_summary: PlanSummary, template_name: str = "modern.html"
     ) -> str:
         """Create a standalone HTML file with embedded CSS and JavaScript."""
         template = self.env.get_template(template_name)

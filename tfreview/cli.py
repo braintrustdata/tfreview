@@ -73,8 +73,8 @@ Examples:
 
     parser.add_argument(
         "--template",
-        help="Template file to use (default: standalone.html)",
-        default="standalone.html",
+        help="Template file to use (default: modern.html)",
+        default="modern.html",
     )
 
     parser.add_argument("--version", action="version", version="TFReview 1.0.0")
