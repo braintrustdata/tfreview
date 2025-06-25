@@ -13,18 +13,18 @@ https://github.com/user-attachments/assets/a7897be5-be19-42dd-bb01-26ed9548ddf8
 
 ## Features ✨
 
-- **Interactive HTML Interface**: Review terraform plans in a modern, user-friendly web interface
 - **Collapsible Resource Views**: Organize changes with expandable sections for each resource
-- **Review Tracking**: Mark resources as approved or needing changes with progress tracking (browser local)
 - **Syntax Highlighting**: Color-coded terraform diff output for easier reading
-- **Entirely built using AI**: Please god, don't look at the commit history.
+- **Review Tracking**: Mark resources as approved or needing changes with progress tracking (browser local)
+- **Easy Review Workflow**: Read, Click, Read, Click, Read, Click
+- **Entirely built using AI**: I beg you not to look at the commit history.
 
 ## Installation 📦
 
 ### From source
 
 ```bash
-git clone https://github.com/tfreview/tfreview.git
+git clone https://github.com/braintrustdata/tfreview.git
 cd tfreview
 pip install -e .
 ```
@@ -53,15 +53,6 @@ tfreview plan.txt -o my-review.html
 tfreview plan.txt --no-browser
 ```
 
-
-## Development 🔧
-
-### Running Tests
-
-```bash
-pytest tests/
-```
-
 ## License 📄
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
@@ -69,6 +60,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Roadmap 🗺️
 
 - [ ] **CI/CD Integration**: GitHub Action to run and post results to a PR as clickable comment
+- [ ] **Easier installation**: Definitely want to switch to `uv` but the AI barely understands `uv`. Maybe I just ask it to rewrite it in Go.
 
 # Credits
-Cursor did all of this. Vibe coding is insanely frustrating, but I never would have created this myself without it. Apologies for the code. This isn't a work of art I carefully crafted and reviewed. I just wanted it to exist so that reviewing large terraform plans can now be humanly possible.
+Built entirely with AI in Cursor using plain english. The code quality matches my will to live after reviewing thousands of Terraform plans manually. Technically functional but deeply concerning. You're welcome.
+
+Seriously though, as horribly frustrating vibe coding is, I never would have built this myself without it. Vibe coding solved a long standing problem for me for $20/month (+ some mental anguish).
