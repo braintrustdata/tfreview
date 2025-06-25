@@ -9,7 +9,7 @@ Pipe your terraform plan output to it and it will open something readable by hum
 
 ![TFReview Screenshot](assets/tfreview.png)
 
-https://github.com/user-attachments/assets/a7897be5-be19-42dd-bb01-26ed9548ddf8
+https://github.com/user-attachments/assets/308543e0-939a-422a-977e-c3e4bb098e77
 
 ## Features ✨
 
