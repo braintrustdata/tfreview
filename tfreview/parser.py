@@ -379,23 +379,3 @@ class TerraformPlanParser:
             i += 1
 
         return output_changes
-
-    def to_json(self, plan_summary: PlanSummary) -> str:
-        """Convert plan summary to JSON."""
-
-        def convert_dataclass(obj):
-            if hasattr(obj, "__dict__"):
-                result = {}
-                for key, value in obj.__dict__.items():
-                    if isinstance(value, Enum):
-                        result[key] = value.value
-                    elif isinstance(value, list):
-                        result[key] = [convert_dataclass(item) for item in value]
-                    elif hasattr(value, "__dict__"):
-                        result[key] = convert_dataclass(value)
-                    else:
-                        result[key] = value
-                return result
-            return obj
-
-        return json.dumps(convert_dataclass(plan_summary), indent=2)

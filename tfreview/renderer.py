@@ -13,11 +13,10 @@ from .parser import PlanSummary, ChangeType, ResourceChange
 class HTMLRenderer:
     """Renders terraform plan data as HTML with interactive review interface."""
 
-    def __init__(self, templates_dir: Optional[Union[str, Path]] = None):
+    def __init__(self):
         """Initialize the HTML renderer."""
-        if templates_dir is None:
-            # Default to templates directory relative to this file
-            templates_dir = Path(__file__).parent.parent / "templates"
+        # Default to templates directory relative to this file
+        templates_dir = Path(__file__).parent.parent / "templates"
 
         self.templates_dir = Path(templates_dir)
         self.env = Environment(

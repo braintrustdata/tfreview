@@ -877,13 +877,31 @@
                 </div>
                 {% endif %}
             </h1>
+        </div>
 
-            {% if not plan.has_changes %}
+        {% if not plan.has_changes %}
+        <div class="content-area">
             <div class="no-changes">
                 ✅ No changes. Infrastructure is up-to-date.
             </div>
-            {% endif %}
+            <!-- Full Plan Text Section (always shown, even if no changes) -->
+            <div class="full-plan-section">
+                <div class="full-plan-header" onclick="toggleFullPlan()">
+                    <div>
+                        <h3>📄 Full Terraform Plan Output</h3>
+                        <p style="font-size: 0.85rem; color: #718096; margin-top: 4px;">Click to view the complete
+                            terraform plan
+                            output for reference</p>
+                    </div>
+                    <div class="expand-indicator" id="fullPlanIndicator">▼</div>
+                </div>
+
+                <div class="full-plan-content" id="fullPlanContent">
+                    <div class="full-plan-text">{{ plan.raw_plan|colorize_terraform_full|safe }}</div>
+                </div>
+            </div>
         </div>
+        {% endif %}
 
         {% if plan.has_changes %}
         <div class="content-area">
