@@ -4,8 +4,7 @@ View your Terraform plan in an beautiful and easy to use HTML interface.
 
 Staring at reams of monospace text in a terminal is so 1985. Let TFReview blast your terraform experience into a modern future! (the late 90s)
 
-Pipe your terraform plan output to it and it will open something readable by humans in a browser.
-`terraform plan | tfreview`
+Pipe your terraform plan output to it and it will open something readable by humans in a browser: `terraform plan | tfreview`
 
 ![TFReview Screenshot](assets/tfreview.png)
 
