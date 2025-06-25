@@ -74,17 +74,21 @@ Examples:
 
     try:
         if args.input == "-":
-            # Check if stdin has data available
-            import select
-
-            if select.select([sys.stdin], [], [], 0.0)[0]:
-                # There's data on stdin, read it
-                plan_text = ""
-                for line in sys.stdin:
-                    print(line, end="", flush=True)  # Echo to terminal
-                    plan_text += line
-            else:
-                # No data on stdin, show help
+            # Try to read from stdin
+            plan_text = ""
+            try:
+                # Check if stdin is connected to a terminal (interactive) vs pipe
+                if sys.stdin.isatty():
+                    # Interactive terminal - show help
+                    parser.print_help()
+                    sys.exit(0)
+                else:
+                    # Reading from pipe - read all input
+                    for line in sys.stdin:
+                        print(line, end="", flush=True)  # Echo to terminal
+                        plan_text += line
+            except (EOFError, KeyboardInterrupt):
+                # No data available or interrupted
                 parser.print_help()
                 sys.exit(0)
         else:
