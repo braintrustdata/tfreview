@@ -1,8 +1,10 @@
 # TFReview 🔍
 
-A modern, interactive tool for reviewing Terraform plans in a beautiful HTML interface.
+View your Terraform plan in an beautiful and easy to use HTML interface.
 
-Pipe your terraform plan output to it and it will open in your browser.
+Staring at reams of monospace text in a terminal is so 1985. TFReview blasts terraform into the future! (the late 90s)
+
+Pipe your terraform plan output to it and it will open something readable by humans in a browser.
 `terraform plan | tfreview`
 
 ![TFReview Screenshot](assets/tfreview.png)
@@ -14,7 +16,8 @@ https://github.com/user-attachments/assets/a7897be5-be19-42dd-bb01-26ed9548ddf8
 - **Interactive HTML Interface**: Review terraform plans in a modern, user-friendly web interface
 - **Collapsible Resource Views**: Organize changes with expandable sections for each resource
 - **Review Tracking**: Mark resources as approved or needing changes with progress tracking (browser local)
-- **Syntax Highlighting**: Color-coded terraform diff output for easy reading
+- **Syntax Highlighting**: Color-coded terraform diff output for easier reading
+- **Entirely built using AI**: Please god, don't look at the commit history.
 
 ## Installation 📦
 
@@ -24,14 +27,6 @@ https://github.com/user-attachments/assets/a7897be5-be19-42dd-bb01-26ed9548ddf8
 git clone https://github.com/tfreview/tfreview.git
 cd tfreview
 pip install -e .
-```
-
-### Development installation
-
-```bash
-git clone https://github.com/tfreview/tfreview.git
-cd tfreview
-pip install -e ".[dev]"
 ```
 
 ## Quick Start 🚀
