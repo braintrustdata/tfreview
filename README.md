@@ -4,7 +4,7 @@ View your Terraform plan in an beautiful and easy to use HTML interface.
 
 Staring at reams of monospace text in a terminal is so 1985. Let TFReview blast your terraform experience into a modern future! (the late 90s)
 
-Pipe your terraform plan output to it and it will open something readable by humans in a browser: 
+Pipe your terraform plan output to it and it will open something readable by humans in a browser:
 
 `terraform plan | tfreview`
 
@@ -23,11 +23,13 @@ https://github.com/user-attachments/assets/308543e0-939a-422a-977e-c3e4bb098e77
 ## Installation 📦
 
 ### From source
+Requires `uv` to be [installed](https://docs.astral.sh/uv/getting-started/installation/).
 
 ```bash
 git clone https://github.com/braintrustdata/tfreview.git
-cd tfreview
-pip install -e .
+alias tfreview="uvx --from $(pwd)/tfreview tfreview"
+# Maybe put that guy up there in your .zprofile
+tfreview --help
 ```
 
 ## Quick Start 🚀
@@ -36,7 +38,7 @@ pip install -e .
 
 ```bash
 # Review a terraform plan file
-terraform plan -no-color | tfreview
+terraform plan | tfreview
 terraform show tfplan | tfreview
 
 # Or save plan to text file first
