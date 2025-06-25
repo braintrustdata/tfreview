@@ -74,10 +74,19 @@ Examples:
 
     try:
         if args.input == "-":
-            plan_text = ""
-            for line in sys.stdin:
-                print(line, end="", flush=True)  # Echo to terminal
-                plan_text += line
+            # Check if stdin has data available
+            import select
+
+            if select.select([sys.stdin], [], [], 0.0)[0]:
+                # There's data on stdin, read it
+                plan_text = ""
+                for line in sys.stdin:
+                    print(line, end="", flush=True)  # Echo to terminal
+                    plan_text += line
+            else:
+                # No data on stdin, show help
+                parser.print_help()
+                sys.exit(0)
         else:
             with open(args.input, "r", encoding="utf-8") as f:
                 plan_text = f.read()
