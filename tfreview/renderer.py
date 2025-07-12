@@ -212,13 +212,13 @@ class HTMLRenderer:
         )
 
     def _highlight_resource_name(self, resource_address: str) -> str:
-        """Highlight the resource type and name in the resource address."""
+        """Highlight only the resource type in the resource address."""
         parts = resource_address.split(".")
         if len(parts) >= 2:
             # Get the last two parts (resource type and name)
             resource_type = parts[-2]
             resource_name = parts[-1]
-            # Build the full address with highlighting
+            # Build the full address with highlighting - only highlight resource type
             prefix = ".".join(parts[:-2]) + ("." if len(parts) > 2 else "")
-            return f'{prefix}<span class="resource-name-highlight">{resource_type}.{resource_name}</span>'
+            return f'{prefix}<span class="resource-type-bold">{resource_type}</span>.{resource_name}'
         return resource_address
