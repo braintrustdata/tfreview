@@ -54,6 +54,65 @@
             opacity: 0.3;
         }
 
+        /* Error section styles */
+        .error-section {
+            background: linear-gradient(135deg, #fed7d7, #feb2b2);
+            border-left: 4px solid #e53e3e;
+            margin: 16px 24px;
+            padding: 16px 24px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(229, 62, 62, 0.2);
+        }
+
+        .error-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #c53030;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .error-list {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        .error-item {
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 6px;
+            padding: 12px 16px;
+            margin-bottom: 8px;
+            border-left: 3px solid #e53e3e;
+        }
+
+        .error-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .error-item-title {
+            font-weight: 600;
+            color: #c53030;
+            margin-bottom: 4px;
+        }
+
+        .error-item-location {
+            font-size: 0.85rem;
+            color: #744210;
+            margin-bottom: 8px;
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+        }
+
+        .error-item-message {
+            color: #2d3748;
+            font-size: 0.9rem;
+            line-height: 1.4;
+            white-space: pre-wrap;
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+        }
+
         .header h1 {
             font-size: 1.4rem;
             font-weight: 700;
@@ -882,6 +941,28 @@
 
         {% if not plan.has_changes %}
         <div class="content-area">
+            <!-- Terraform Errors Section -->
+            {% if plan.has_errors %}
+            <div class="error-section">
+                <div class="error-title">
+                    ⚠️ Terraform Plan Errors ({{ plan.errors|length }})
+                </div>
+                <ul class="error-list">
+                    {% for error in plan.errors %}
+                    <li class="error-item">
+                        <div class="error-item-title">{{ error.title }}</div>
+                        {% if error.file_path %}
+                        <div class="error-item-location">
+                            📁 {{ error.file_path }}{% if error.line_number %} (line {{ error.line_number }}){% endif %}
+                        </div>
+                        {% endif %}
+                        <div class="error-item-message">{{ error.message }}</div>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+            
             <div class="no-changes">
                 ✅ No changes. Infrastructure is up-to-date.
             </div>
@@ -906,6 +987,28 @@
 
         {% if plan.has_changes %}
         <div class="content-area">
+            <!-- Terraform Errors Section -->
+            {% if plan.has_errors %}
+            <div class="error-section">
+                <div class="error-title">
+                    ⚠️ Terraform Plan Errors ({{ plan.errors|length }})
+                </div>
+                <ul class="error-list">
+                    {% for error in plan.errors %}
+                    <li class="error-item">
+                        <div class="error-item-title">{{ error.title }}</div>
+                        {% if error.file_path %}
+                        <div class="error-item-location">
+                            📁 {{ error.file_path }}{% if error.line_number %} (line {{ error.line_number }}){% endif %}
+                        </div>
+                        {% endif %}
+                        <div class="error-item-message">{{ error.message }}</div>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+            
             <div class="resource-changes">
                 {% set destroy_resources = [] %}
                 {% set replace_resources = [] %}

@@ -49,6 +49,14 @@ class OutputChange:
 
 
 @dataclass
+class TerraformError:
+    title: str
+    message: str
+    file_path: Optional[str] = None
+    line_number: Optional[int] = None
+
+
+@dataclass
 class PlanSummary:
     to_add: int
     to_change: int
@@ -58,6 +66,8 @@ class PlanSummary:
     output_changes: List[OutputChange]
     has_changes: bool
     raw_plan: str
+    errors: List[TerraformError]
+    has_errors: bool
 
 
 class TerraformPlanParser:
@@ -82,11 +92,18 @@ class TerraformPlanParser:
         self.replacement_pattern = re.compile(
             r"^  ([+-]/[+-])\s*(.+?)\s*=\s*(.+?)(?:\s*->\s*(.+?))?$"
         )
+        
+        # Pattern for error blocks (╷ starts error, ╵ ends error)
+        self.error_start_pattern = re.compile(r"^╷\s*$")
+        self.error_end_pattern = re.compile(r"^╵\s*$")
 
     def parse(self, plan_text: str) -> PlanSummary:
         """Parse terraform plan text into structured data."""
         lines = plan_text.split("\n")
 
+        # Parse errors first
+        errors = self._parse_errors(lines)
+        
         # Check for no changes
         if any(self.no_changes_pattern.search(line) for line in lines):
             return PlanSummary(
@@ -98,6 +115,8 @@ class TerraformPlanParser:
                 output_changes=[],
                 has_changes=False,
                 raw_plan=plan_text,
+                errors=errors,
+                has_errors=len(errors) > 0,
             )
 
         resource_changes = []
@@ -164,6 +183,8 @@ class TerraformPlanParser:
             output_changes=output_changes,
             has_changes=len(resource_changes) > 0 or len(output_changes) > 0,
             raw_plan=plan_text,
+            errors=errors,
+            has_errors=len(errors) > 0,
         )
 
     def _parse_resource_change(
@@ -379,3 +400,90 @@ class TerraformPlanParser:
             i += 1
 
         return output_changes
+
+    def _parse_errors(self, lines: List[str]) -> List[TerraformError]:
+        """Parse error blocks from terraform plan output."""
+        errors = []
+        i = 0
+        
+        while i < len(lines):
+            line = lines[i].rstrip()
+            
+            # Check for error block start
+            if self.error_start_pattern.match(line):
+                error, end_index = self._parse_single_error(lines, i)
+                if error:
+                    errors.append(error)
+                i = end_index
+            else:
+                i += 1
+                
+        return errors
+
+    def _parse_single_error(self, lines: List[str], start_index: int) -> Tuple[Optional[TerraformError], int]:
+        """Parse a single error block starting with ╷ and ending with ╵."""
+        i = start_index + 1
+        error_lines = []
+        title = ""
+        file_path = None
+        line_number = None
+        
+        while i < len(lines):
+            line = lines[i].rstrip()
+            
+            # Check for error block end
+            if self.error_end_pattern.match(line):
+                break
+                
+            # Skip empty lines at the start
+            if not line.strip() and not error_lines:
+                i += 1
+                continue
+                
+            error_lines.append(line)
+            i += 1
+        
+        if not error_lines:
+            return None, i + 1
+            
+        # Extract title (first non-empty line starting with │)
+        for line in error_lines:
+            clean_line = line.lstrip("│ ").strip()
+            if clean_line.startswith("Error:") or clean_line.startswith("Warning:"):
+                title = clean_line
+                break
+                
+        # Look for file path and line number
+        for line in error_lines:
+            # Pattern: "│   on path/to/file.tf line 12, in resource..."
+            if "on " in line and " line " in line:
+                parts = line.split()
+                try:
+                    on_idx = parts.index("on")
+                    line_idx = parts.index("line")
+                    if on_idx < len(parts) - 1 and line_idx < len(parts) - 1:
+                        file_path = parts[on_idx + 1].rstrip(",")
+                        line_number = int(parts[line_idx + 1].rstrip(","))
+                except (ValueError, IndexError):
+                    pass
+                break
+        
+        # Build the full error message from all lines
+        message_lines = []
+        for line in error_lines:
+            # Clean up the box drawing characters
+            clean_line = line.lstrip("│ ").rstrip()
+            if clean_line:
+                message_lines.append(clean_line)
+        
+        message = "\n".join(message_lines)
+        
+        if not title:
+            title = "Terraform Error"
+            
+        return TerraformError(
+            title=title,
+            message=message,
+            file_path=file_path,
+            line_number=line_number
+        ), i + 1
