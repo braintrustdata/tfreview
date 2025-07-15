@@ -54,8 +54,8 @@ Examples:
     parser.add_argument(
         "-o",
         "--output",
-        help="Output HTML file (default: plan_review.html)",
-        default="plan_review.html",
+        help="Output HTML file (default: .terraform/tfreview-plan.html)",
+        default=".terraform/tfreview-plan.html",
     )
 
     parser.add_argument(
@@ -111,6 +111,9 @@ Examples:
         html_content = renderer.create_standalone_html(plan_summary, args.template)
 
         output_path = Path(args.output)
+        # Create parent directory if it doesn't exist
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        
         with open(output_path, "w", encoding="utf-8") as f:
             f.write(html_content)
 
