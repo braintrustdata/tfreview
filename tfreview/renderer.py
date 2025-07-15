@@ -213,12 +213,17 @@ class HTMLRenderer:
 
     def _highlight_resource_name(self, resource_address: str) -> str:
         """Highlight only the resource type in the resource address."""
-        parts = resource_address.split(".")
+        # Remove ALL bracket notation (e.g., ["key"] or [0]) from the entire address
+        base_address = re.sub(r'\[.*?\]', '', resource_address)
+        
+        parts = base_address.split(".")
         if len(parts) >= 2:
-            # Get the last two parts (resource type and name)
+            # Resource type is the second-to-last part, resource name is the last part
             resource_type = parts[-2]
-            resource_name = parts[-1]
-            # Build the full address with highlighting - only highlight resource type
-            prefix = ".".join(parts[:-2]) + ("." if len(parts) > 2 else "")
-            return f'{prefix}<span class="resource-type-bold">{resource_type}</span>.{resource_name}'
+            
+            # Find the resource type in the original address and wrap it with highlighting
+            # Use word boundaries to ensure we match the exact resource type
+            pattern = r'\b' + re.escape(resource_type) + r'\b'
+            return re.sub(pattern, f'<span class="resource-type-bold">{resource_type}</span>', resource_address)
+        
         return resource_address
