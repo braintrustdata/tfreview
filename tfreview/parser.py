@@ -14,6 +14,7 @@ class ChangeType(Enum):
     UPDATE = "update"
     DELETE = "delete"
     REPLACE = "replace"
+    MOVED = "moved"
     NO_OP = "no-op"
 
 
@@ -78,6 +79,10 @@ class TerraformPlanParser:
         self.change_header_pattern = re.compile(
             r"^  # (.+?) will be (.+?)$|^  # (.+?) must be (.+?)$"
         )
+        # Pattern for "has moved to" changes
+        self.moved_pattern = re.compile(
+            r"^  # (.+?) has moved to (.+?)$"
+        )
         self.resource_address_pattern = re.compile(r"^(.+?)\.(.+?)(?:\[(.+?)\])?$")
         self.summary_pattern = re.compile(
             r"Plan: (\d+) to add, (\d+) to change, (\d+) to destroy"
@@ -129,6 +134,8 @@ class TerraformPlanParser:
 
             # Check for change header
             header_match = self.change_header_pattern.match(line)
+            moved_match = self.moved_pattern.match(line)
+            
             if header_match:
                 # Handle both "will be" and "must be" patterns
                 if header_match.group(1) and header_match.group(2):
@@ -159,6 +166,20 @@ class TerraformPlanParser:
                         to_destroy += 1
                     elif resource_change.change_type == ChangeType.REPLACE:
                         to_replace += 1
+
+                i = end_index
+            elif moved_match:
+                # Handle "has moved to" pattern
+                old_address = moved_match.group(1)
+                new_address = moved_match.group(2)
+                
+                # Parse the resource change block for moved resources
+                resource_change, end_index = self._parse_moved_resource(
+                    lines, i, old_address, new_address
+                )
+                if resource_change:
+                    resource_changes.append(resource_change)
+                    # Moved resources don't count towards any of the action counters
 
                 i = end_index
             else:
@@ -299,6 +320,57 @@ class TerraformPlanParser:
             resource_type=resource_type,
             resource_name=resource_name,
             change_type=change_type,
+            attributes_added=attributes_added,
+            attributes_changed=attributes_changed,
+            attributes_deleted=attributes_deleted,
+            nested_changes=nested_changes,
+            has_sensitive=has_sensitive,
+            has_computed=has_computed,
+        )
+
+        return resource_change, i
+
+    def _parse_moved_resource(
+        self, lines: List[str], start_index: int, old_address: str, new_address: str
+    ) -> Tuple[Optional[ResourceChange], int]:
+        """Parse a moved resource block."""
+        # Use the new address as the primary address
+        resource_type, resource_name = self._parse_resource_address(new_address)
+
+        # For moved resources, we don't typically have attribute changes
+        attributes_added = []
+        attributes_changed = []
+        attributes_deleted = []
+        nested_changes = []
+        has_sensitive = False
+        has_computed = False
+
+        # Move to the next line after the header
+        i = start_index + 1
+        
+        # Skip through the resource block (moved resources typically show the resource definition)
+        while i < len(lines):
+            line = lines[i].rstrip()
+
+            # Check for delimiter: blank line followed by "  #" (next resource) or "Plan:" (summary)
+            if not line.strip() and i + 1 < len(lines):
+                next_line = lines[i + 1]
+                if next_line.startswith("  #") or next_line.startswith("Plan:"):
+                    break
+
+            if not line.strip():
+                i += 1
+                continue
+
+            # For moved resources, just skip through the resource definition block
+            # We could parse attributes here if needed, but typically they're unchanged
+            i += 1
+
+        resource_change = ResourceChange(
+            resource_address=new_address,  # Use the new address
+            resource_type=resource_type,
+            resource_name=resource_name,
+            change_type=ChangeType.MOVED,
             attributes_added=attributes_added,
             attributes_changed=attributes_changed,
             attributes_deleted=attributes_deleted,

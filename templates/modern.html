@@ -249,6 +249,17 @@
             border-color: rgba(245, 101, 101, 0.8);
         }
 
+        .header-count-moved {
+            background: rgba(59, 130, 246, 0.4);
+            color: #ffffff;
+            border-color: rgba(59, 130, 246, 0.6);
+        }
+
+        .header-count-moved:hover {
+            background: rgba(59, 130, 246, 0.5);
+            border-color: rgba(59, 130, 246, 0.8);
+        }
+
         .header-count-icon {
             line-height: 1;
             display: inline-block;
@@ -404,6 +415,11 @@
             border-left: 4px solid #48bb78;
         }
 
+        .change-group-header.moved-group {
+            background: linear-gradient(90deg, #ebf8ff, #ffffff);
+            border-left: 4px solid #3182ce;
+        }
+
         .resource-changes {
             margin-top: 0;
         }
@@ -507,6 +523,10 @@
             border-left: 3px solid #f56565;
         }
 
+        .change-moved .resource-header {
+            border-left: 3px solid #3182ce;
+        }
+
         .resource-header-main {
             display: flex;
             align-items: center;
@@ -571,6 +591,13 @@
             border-right-color: #f56565;
         }
 
+        .change-moved .resource-type-bold {
+            background: #ebf8ff;
+            color: #2c5282;
+            border-left-color: #3182ce;
+            border-right-color: #3182ce;
+        }
+
         .change-type {
             background: #4a5568;
             color: white;
@@ -596,6 +623,10 @@
 
         .change-replace .change-type {
             background: #f56565;
+        }
+
+        .change-moved .change-type {
+            background: #3182ce;
         }
 
         .expand-indicator {
@@ -921,6 +952,13 @@
                         <span class="header-count-icon">➕</span> {{ plan.to_add }} to add
                     </button>
                     {% endif %}
+
+                    {% set moved_count = plan.resource_changes | selectattr('change_type.value', 'equalto', 'moved') | list | length %}
+                    {% if moved_count > 0 %}
+                    <button class="header-count-item header-count-moved" onclick="scrollToSection('moved-group')">
+                        <span class="header-count-icon">↔️</span> {{ moved_count }} moved
+                    </button>
+                    {% endif %}
                 </div>
                 <div class="header-progress">
                     <div class="header-progress-text" id="headerProgressText">0 of {{ plan.resource_changes|length }}
@@ -1014,6 +1052,7 @@
                 {% set replace_resources = [] %}
                 {% set update_resources = [] %}
                 {% set create_resources = [] %}
+                {% set moved_resources = [] %}
 
                 {% for resource in plan.resource_changes %}
                 {% if resource.change_type.value == 'delete' %}
@@ -1024,6 +1063,8 @@
                 {% set _ = update_resources.append(resource) %}
                 {% elif resource.change_type.value == 'create' %}
                 {% set _ = create_resources.append(resource) %}
+                {% elif resource.change_type.value == 'moved' %}
+                {% set _ = moved_resources.append(resource) %}
                 {% endif %}
                 {% endfor %}
 
@@ -1189,6 +1230,57 @@
                         ➕ Resources to Create ({{ create_resources|length }})
                     </div>
                     {% for resource in create_resources %}
+                    {% set _ = all_grouped_resources.append((resource, resource_index[0])) %}
+                    <div class="resource-card {{ resource.change_type|change_type_class }}"
+                        data-resource-index="{{ resource_index[0] }}">
+                        <div class="resource-header" onclick="toggleResource({{ resource_index[0] }})">
+                            <div class="resource-header-main">
+                                <div class="resource-title">
+                                    <div class="review-status" id="status-{{ resource_index[0] }}"
+                                        style="display: none;">
+                                    </div>
+                                    <span class="resource-address">{{
+                                        resource.resource_address|highlight_resource_name|safe
+                                        }}</span>
+                                </div>
+                            </div>
+                            <div class="expand-indicator">▼</div>
+                        </div>
+
+                        <div class="resource-content" id="content-{{ resource_index[0] }}">
+                            <div class="resource-diff">{{
+                                plan.raw_plan|extract_resource_diff(resource)|colorize_terraform|safe }}</div>
+
+                            <div class="review-actions" id="actions-{{ resource_index[0] }}">
+                                <button class="btn btn-approve"
+                                    onclick="markAsReviewed({{ resource_index[0] }}, 'approved')">
+                                    ✅ Approve
+                                </button>
+                                <button class="btn btn-needs-changes"
+                                    onclick="markAsReviewed({{ resource_index[0] }}, 'needs-changes')">
+                                    ⚠️ Needs Changes
+                                </button>
+                                <button class="btn btn-next" onclick="goToNext({{ resource_index[0] }})">
+                                    ⏭️ Next Change
+                                </button>
+                                <button class="btn btn-clear" onclick="clearReview({{ resource_index[0] }})"
+                                    style="display: none;">
+                                    🔄 Clear Review
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    {% set _ = resource_index.append(resource_index.pop() + 1) %}
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                {% if moved_resources %}
+                <div class="change-group" id="moved-group">
+                    <div class="change-group-header moved-group">
+                        ↔️ Resources Moved ({{ moved_resources|length }})
+                    </div>
+                    {% for resource in moved_resources %}
                     {% set _ = all_grouped_resources.append((resource, resource_index[0])) %}
                     <div class="resource-card {{ resource.change_type|change_type_class }}"
                         data-resource-index="{{ resource_index[0] }}">

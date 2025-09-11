@@ -124,6 +124,7 @@ class HTMLRenderer:
             ChangeType.UPDATE: "change-update",
             ChangeType.DELETE: "change-delete",
             ChangeType.REPLACE: "change-replace",
+            ChangeType.MOVED: "change-moved",
             ChangeType.NO_OP: "change-noop",
         }
         return class_map.get(change_type, "change-unknown")
@@ -135,6 +136,7 @@ class HTMLRenderer:
             ChangeType.UPDATE: "✏️",
             ChangeType.DELETE: "❌",
             ChangeType.REPLACE: "🔄",
+            ChangeType.MOVED: "↔️",
             ChangeType.NO_OP: "⚪",
         }
         return icon_map.get(change_type, "❓")
@@ -152,6 +154,7 @@ class HTMLRenderer:
             if resource_change.resource_address in line and (
                 ("will be" in line)
                 or ("must be" in line)
+                or ("has moved to" in line)
                 or ("-/+" in line)
                 or ("+/-" in line)
             ):
@@ -163,6 +166,7 @@ class HTMLRenderer:
                     if subline.strip().startswith("#") and (
                         ("will be" in subline)
                         or ("must be" in subline)
+                        or ("has moved to" in subline)
                         or ("-/+" in subline)
                         or ("+/-" in subline)
                     ):
