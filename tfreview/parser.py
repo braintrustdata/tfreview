@@ -39,6 +39,7 @@ class ResourceChange:
     nested_changes: List[Dict[str, Any]]
     has_sensitive: bool
     has_computed: bool
+    was_moved_from: Optional[str] = None  # Track if this resource was moved from another address
 
 
 @dataclass
@@ -157,6 +158,23 @@ class TerraformPlanParser:
                 if resource_change:
                     resource_changes.append(resource_change)
 
+                    # If this resource was moved from somewhere else, create a duplicate with MOVED type
+                    if resource_change.was_moved_from:
+                        moved_resource = ResourceChange(
+                            resource_address=resource_change.resource_address,
+                            resource_type=resource_change.resource_type,
+                            resource_name=resource_change.resource_name,
+                            change_type=ChangeType.MOVED,
+                            attributes_added=[],
+                            attributes_changed=[],
+                            attributes_deleted=[],
+                            nested_changes=[],
+                            has_sensitive=False,
+                            has_computed=False,
+                            was_moved_from=resource_change.was_moved_from,
+                        )
+                        resource_changes.append(moved_resource)
+
                     # Update counters
                     if resource_change.change_type == ChangeType.CREATE:
                         to_add += 1
@@ -225,6 +243,7 @@ class TerraformPlanParser:
         nested_changes = []
         has_sensitive = False
         has_computed = False
+        was_moved_from = None
 
         i = start_index + 1
         while i < len(lines):
@@ -239,6 +258,14 @@ class TerraformPlanParser:
             if not line.strip():
                 i += 1
                 continue
+
+            # Check for "(moved from" pattern
+            if "(moved from " in line:
+                # Extract the original address from the line
+                import re
+                moved_from_match = re.search(r'\(moved from (.+?)\)', line)
+                if moved_from_match:
+                    was_moved_from = moved_from_match.group(1)
 
             # Parse attribute changes
             attr_match = self.attribute_change_pattern.match(line)
@@ -326,6 +353,7 @@ class TerraformPlanParser:
             nested_changes=nested_changes,
             has_sensitive=has_sensitive,
             has_computed=has_computed,
+            was_moved_from=was_moved_from,
         )
 
         return resource_change, i
@@ -377,6 +405,7 @@ class TerraformPlanParser:
             nested_changes=nested_changes,
             has_sensitive=has_sensitive,
             has_computed=has_computed,
+            was_moved_from=old_address,
         )
 
         return resource_change, i
