@@ -216,18 +216,36 @@ class HTMLRenderer:
         )
 
     def _highlight_resource_name(self, resource_address: str) -> str:
-        """Highlight only the resource type in the resource address."""
+        """Highlight the resource type and make the resource name bold."""
         # Remove ALL bracket notation (e.g., ["key"] or [0]) from the entire address
         base_address = re.sub(r'\[.*?\]', '', resource_address)
-        
+
         parts = base_address.split(".")
         if len(parts) >= 2:
             # Resource type is the second-to-last part, resource name is the last part
             resource_type = parts[-2]
-            
-            # Find the resource type in the original address and wrap it with highlighting
-            # Use word boundaries to ensure we match the exact resource type
+            resource_name = parts[-1]
+
+            # First highlight the resource type
             pattern = r'\b' + re.escape(resource_type) + r'\b'
-            return re.sub(pattern, f'<span class="resource-type-bold">{resource_type}</span>', resource_address)
-        
+            result = re.sub(pattern, f'<span class="resource-type-bold">{resource_type}</span>', resource_address)
+
+            # Then highlight only the LAST occurrence of the resource name with the same styling
+            # Find the last occurrence by searching from the end
+            last_dot_index = result.rfind('.')
+            if last_dot_index != -1:
+                # Find the resource name after the last dot
+                after_last_dot = result[last_dot_index + 1:]
+                # Capture the resource name and any brackets/indices that follow
+                pattern = r'^(' + re.escape(resource_name) + r'(?:\[.*?\])?)'
+                match = re.match(pattern, after_last_dot)
+                if match:
+                    # Replace the entire matched portion (name + brackets)
+                    full_resource_name = match.group(1)
+                    before_last_dot = result[:last_dot_index + 1]
+                    remaining = after_last_dot[len(full_resource_name):]
+                    result = before_last_dot + f'<span class="resource-type-bold">{full_resource_name}</span>' + remaining
+
+            return result
+
         return resource_address
