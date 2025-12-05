@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Terraform Plan Review</title>
+    <title>Terraform Plan</title>
     <style>
         /* Modern CSS with reduced white space */
         * {
@@ -646,7 +646,7 @@
             max-height: 0;
             overflow: hidden;
             background: transparent;
-            transition: opacity 0.3s ease, max-height 0.3s ease, padding 0.3s ease;
+            transition: opacity 0.15s ease, max-height 0.15s ease, padding 0.15s ease;
         }
 
         .resource-content.expanded {
@@ -926,7 +926,7 @@
     <div class="container">
         <div class="header">
             <h1>
-                <div class="header-title">🔍 Terraform Plan Review</div>
+                <div class="header-title">🔍 Terraform Plan</div>
                 {% if plan.has_changes %}
                 <div class="header-counts">
                     {% if plan.to_destroy > 0 %}
@@ -1511,10 +1511,10 @@
                     setTimeout(() => {
                         content.classList.remove('expanded', 'collapsing');
 
-                        // Find and navigate to next unreviewed resource
-                        goToNextUnreviewed();
-                    }, 300); // Wait for collapse animation
-                }, 200); // Initial delay to show approval
+                        // Find and navigate to next unreviewed resource starting from current index
+                        goToNextUnreviewed(index);
+                    }, 150); // Wait for collapse animation - reduced from 300ms to 150ms
+                }, 100); // Initial delay to show approval - reduced from 200ms to 100ms
             }
         }
 
@@ -1554,13 +1554,26 @@
             }
         }
 
-        function goToNextUnreviewed() {
-            for (let i = 0; i < totalResources; i++) {
+        function goToNextUnreviewed(fromIndex = 0) {
+            // Start searching from the next index after the current one
+            let startIndex = fromIndex + 1;
+
+            // First, search from current position to the end
+            for (let i = startIndex; i < totalResources; i++) {
                 if (!reviewedResources.has(String(i))) {
                     navigateToResource(i);
                     return;
                 }
             }
+
+            // If nothing found after current position, loop back and search from the beginning
+            for (let i = 0; i < startIndex; i++) {
+                if (!reviewedResources.has(String(i))) {
+                    navigateToResource(i);
+                    return;
+                }
+            }
+
             // If all reviewed, just update progress (no popup)
             if (reviewedResources.size === totalResources) {
                 updateProgress();
@@ -1572,9 +1585,10 @@
             const content = document.getElementById(`content-${index}`);
             const header = content.previousElementSibling;
 
-            // Account for sticky header height
-            const headerHeight = document.querySelector('.header').offsetHeight;
-            const cardTop = card.getBoundingClientRect().top + window.scrollY - headerHeight - 10; // 10px extra padding
+            // Account for sticky header height and double the resource header height for extra space
+            const stickyHeaderHeight = document.querySelector('.header').offsetHeight;
+            const resourceHeaderHeight = header.offsetHeight;
+            const cardTop = card.getBoundingClientRect().top + window.scrollY - stickyHeaderHeight - (resourceHeaderHeight * 2);
 
             window.scrollTo({ top: cardTop, behavior: 'smooth' });
 
@@ -1657,9 +1671,11 @@
         function scrollToSection(sectionClass) {
             const section = document.querySelector(`.${sectionClass}`);
             if (section) {
-                // Account for sticky header height
-                const headerHeight = document.querySelector('.header').offsetHeight;
-                const sectionTop = section.offsetTop - headerHeight - 20; // 20px extra padding
+                // Account for sticky header height and estimate resource header height for extra space
+                const stickyHeaderHeight = document.querySelector('.header').offsetHeight;
+                // Estimate resource header height (approximately 50px based on padding)
+                const estimatedResourceHeaderHeight = 50;
+                const sectionTop = section.offsetTop - stickyHeaderHeight - (estimatedResourceHeaderHeight * 2);
 
                 window.scrollTo({
                     top: sectionTop,
