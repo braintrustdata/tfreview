@@ -7,6 +7,7 @@ import re
 from pathlib import Path
 from typing import Dict, Any, Optional, Union
 from jinja2 import Template, Environment, FileSystemLoader
+from markupsafe import Markup
 from .parser import PlanSummary, ChangeType, ResourceChange
 
 
@@ -202,9 +203,9 @@ class HTMLRenderer:
             return js_file.read_text(encoding="utf-8")
         return ""
 
-    def _escape_js(self, text: str) -> str:
+    def _escape_js(self, text: str) -> Markup:
         """Escape JavaScript content for HTML."""
-        return (
+        escaped = (
             text.replace("\\", "\\\\")
             .replace("\n", "\\n")
             .replace("\r", "\\r")
@@ -214,6 +215,7 @@ class HTMLRenderer:
             .replace("`", "\\`")
             .replace("</", "<\\/")
         )
+        return Markup(escaped)
 
     def _highlight_resource_name(self, resource_address: str) -> str:
         """Highlight the resource type and make the resource name bold."""
