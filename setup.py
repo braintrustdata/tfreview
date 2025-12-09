@@ -39,7 +39,7 @@ setup(
     classifiers=[
         "Development Status :: 4 - Beta",
         "Environment :: Console",
-        "Environment :: Web Environment", 
+        "Environment :: Web Environment",
         "Intended Audience :: Developers",
         "Intended Audience :: System Administrators",
         "License :: OSI Approved :: MIT License",
@@ -58,6 +58,7 @@ setup(
     python_requires=">=3.8",
     install_requires=[
         "jinja2>=3.0.0",
+        "boto3>=1.26.0",
     ],
     extras_require={
         "dev": [
@@ -66,9 +67,6 @@ setup(
             "black>=22.0.0",
             "flake8>=4.0.0",
             "mypy>=0.991",
-        ],
-        "s3": [
-            "boto3>=1.26.0",
         ],
     },
     entry_points={
