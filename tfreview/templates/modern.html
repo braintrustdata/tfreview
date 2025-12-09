@@ -953,7 +953,8 @@
                     </button>
                     {% endif %}
 
-                    {% set moved_count = plan.resource_changes | selectattr('change_type.value', 'equalto', 'moved') | list | length %}
+                    {% set moved_count = plan.resource_changes | selectattr('change_type.value', 'equalto', 'moved') |
+                    list | length %}
                     {% if moved_count > 0 %}
                     <button class="header-count-item header-count-moved" onclick="scrollToSection('moved-group')">
                         <span class="header-count-icon">↔️</span> {{ moved_count }} moved
@@ -1000,7 +1001,7 @@
                 </ul>
             </div>
             {% endif %}
-            
+
             <div class="no-changes">
                 ✅ No changes. Infrastructure is up-to-date.
             </div>
@@ -1046,7 +1047,7 @@
                 </ul>
             </div>
             {% endif %}
-            
+
             <div class="resource-changes">
                 {% set destroy_resources = [] %}
                 {% set replace_resources = [] %}
