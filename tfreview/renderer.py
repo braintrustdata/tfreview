@@ -16,8 +16,7 @@ class HTMLRenderer:
 
     def __init__(self):
         """Initialize the HTML renderer."""
-        # Default to templates directory relative to this file
-        templates_dir = Path(__file__).parent.parent / "templates"
+        templates_dir = Path(__file__).parent / "templates"
 
         self.templates_dir = Path(templates_dir)
         self.env = Environment(
