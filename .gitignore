@@ -128,9 +128,5 @@ dmypy.json
 *.swp
 *.swo
 
-# Generated HTML files
-*.html
-!templates/*.html
-
 # Test outputs
 test_output/
