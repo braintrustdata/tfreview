@@ -2,7 +2,10 @@ import argparse
 import sys
 import webbrowser
 import re
+import hashlib
 from pathlib import Path
+from urllib.parse import urljoin
+from typing import Optional
 
 # Handle both package and direct script execution
 try:
@@ -24,6 +27,93 @@ def strip_ansi_codes(text: str) -> str:
     return ansi_escape.sub("", text)
 
 
+def calculate_checksum(text: str) -> str:
+    """Calculate SHA256 checksum of text (first 16 characters)."""
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
+
+
+def upload_to_s3(
+    html_content: str,
+    s3_path: str,
+    plan_text: str,
+    s3_website_url: Optional[str] = None,
+) -> str:
+    """
+    Upload HTML content to S3.
+
+    Args:
+        html_content: The HTML content to upload
+        s3_path: S3 path (e.g., s3://mybucket/tfplans/)
+        plan_text: The original plan text for checksum calculation
+        s3_website_url: Optional static website URL
+
+    Returns:
+        The URL to access the uploaded file
+
+    Raises:
+        ValueError: If S3 path is invalid
+        Exception: If credentials are invalid or upload fails
+    """
+    try:
+        import boto3
+        from botocore.exceptions import ClientError, NoCredentialsError, PartialCredentialsError
+    except ImportError:
+        print("Error: boto3 is required for S3 upload. Install with: pip install boto3", file=sys.stderr)
+        sys.exit(1)
+
+    # Parse S3 path
+    if not s3_path.startswith("s3://"):
+        raise ValueError("S3 path must start with s3://")
+
+    path_parts = s3_path[5:].split("/", 1)
+    bucket_name = path_parts[0]
+    prefix = path_parts[1] if len(path_parts) > 1 else ""
+
+    # Ensure prefix ends with / if it exists
+    if prefix and not prefix.endswith("/"):
+        prefix += "/"
+
+    # Calculate checksum and create filename
+    checksum = calculate_checksum(plan_text)
+    filename = f"{checksum}.html"
+    s3_key = f"{prefix}{filename}"
+
+    # Initialize S3 client and check credentials
+    try:
+        s3_client = boto3.client("s3")
+        # Test credentials by checking if bucket exists
+        s3_client.head_bucket(Bucket=bucket_name)
+    except (NoCredentialsError, PartialCredentialsError, ClientError) as e:
+        print(f"Error checking bucket '{bucket_name}'. Please verify you have AWS credentials set.", file=sys.stderr)
+        sys.exit(1)
+
+    # Upload file
+    try:
+        s3_client.put_object(
+            Bucket=bucket_name,
+            Key=s3_key,
+            Body=html_content.encode("utf-8"),
+            ContentType="text/html",
+        )
+    except ClientError as e:
+        print(f"Error: Failed to upload to S3: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    # Construct URL
+    if s3_website_url:
+        # Use custom website URL
+        base_url = s3_website_url.rstrip("/")
+        url = f"{base_url}/{s3_key}"
+    else:
+        # Use standard S3 URL
+        region = s3_client.get_bucket_location(Bucket=bucket_name).get("LocationConstraint")
+        if region is None:
+            region = "us-east-1"
+        url = f"https://{bucket_name}.s3.{region}.amazonaws.com/{s3_key}"
+
+    return url
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="TFReview - Review Terraform plans in a nice HTML interface",
@@ -41,6 +131,15 @@ Examples:
 
   # Don't open browser automatically
   tfreview --no-browser
+
+  # Upload to S3
+  terraform plan | tfreview --s3-path=s3://mybucket/tfplans/
+
+  # Upload to S3 with custom website URL
+  terraform plan | tfreview --s3-path=s3://mybucket/tfplans/ --s3-website-url=http://mysite.com
+
+  # Upload to S3 without opening browser
+  terraform plan | tfreview --s3-path=s3://mybucket/tfplans/ --no-browser
         """,
     )
 
@@ -66,6 +165,18 @@ Examples:
         "--template",
         help="Template file to use (default: modern.html)",
         default="modern.html",
+    )
+
+    parser.add_argument(
+        "--s3-path",
+        help="Upload to S3 at the specified path (e.g., s3://mybucket/tfplans/)",
+        default=None,
+    )
+
+    parser.add_argument(
+        "--s3-website-url",
+        help="S3 static website URL (e.g., http://mysite.com). Used instead of default S3 URL when specified.",
+        default=None,
     )
 
     parser.add_argument("--version", action="version", version="TFReview 1.0.0")
@@ -113,14 +224,29 @@ Examples:
         output_path = Path(args.output)
         # Create parent directory if it doesn't exist
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        
+
         with open(output_path, "w", encoding="utf-8") as f:
             f.write(html_content)
 
-        if not args.no_browser:
-            webbrowser.open(f"file://{output_path.absolute()}")
+        # Handle S3 upload if requested
+        if args.s3_path:
+            url = upload_to_s3(
+                html_content=html_content,
+                s3_path=args.s3_path,
+                plan_text=plan_text,
+                s3_website_url=args.s3_website_url,
+            )
+            print(f"Uploaded to S3: {url}")
+
+            # Only open browser if website URL is provided and --no-browser is not set
+            if args.s3_website_url and not args.no_browser:
+                webbrowser.open(url)
         else:
-            print(f"Review Plan: {output_path.absolute()}")
+            # Local file behavior
+            if not args.no_browser:
+                webbrowser.open(f"file://{output_path.absolute()}")
+            else:
+                print(f"Review Plan: {output_path.absolute()}")
 
     except FileNotFoundError as e:
         print(f"Error: {e}", file=sys.stderr)

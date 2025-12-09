@@ -67,6 +67,9 @@ setup(
             "flake8>=4.0.0",
             "mypy>=0.991",
         ],
+        "s3": [
+            "boto3>=1.26.0",
+        ],
     },
     entry_points={
         "console_scripts": [
