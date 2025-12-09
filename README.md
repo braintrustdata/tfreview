@@ -26,8 +26,7 @@ https://github.com/user-attachments/assets/308543e0-939a-422a-977e-c3e4bb098e77
 Requires `uv` to be [installed](https://docs.astral.sh/uv/getting-started/installation/).
 
 ```bash
-git clone https://github.com/braintrustdata/tfreview.git
-alias tfreview="uvx --from $(pwd)/tfreview tfreview"
+alias tfreview="uvx --from git+https://github.com/braintrustdata/tfreview@main tfreview"
 # Maybe put that guy up there in your .zprofile
 tfreview --help
 ```
