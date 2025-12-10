@@ -49,9 +49,9 @@ def format_plan_summary(plan_summary: "PlanSummary") -> str:
         parts.append(f"{plan_summary.to_destroy} to destroy")
 
     if parts:
-        return f"Plan: {', '.join(parts)}."
+        return f"Plan Summary: {', '.join(parts)}."
     else:
-        return "Plan: No changes."
+        return "Plan Summary: No changes."
 
 
 def upload_to_s3(
@@ -276,37 +276,40 @@ Examples:
         )
 
         output_path = Path(args.output)
-        # Create parent directory if it doesn't exist
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
         with open(output_path, "w", encoding="utf-8") as f:
             f.write(html_content)
 
-        # Handle S3 upload if requested
+        local_path = output_path.absolute()
+        local_url = f"file://{local_path}"
         if args.s3_path:
-            url = upload_to_s3(
+            remote_url = upload_to_s3(
                 html_content=html_content,
                 s3_path=args.s3_path,
                 plan_text=plan_text,
                 s3_website_url=args.s3_website_url,
                 atlantis=args.atlantis,
             )
-            print(f"Plan Review URL: {url}")
 
-            # In atlantis mode, also print the plan summary
-            if args.atlantis:
+            if not args.atlantis:
+                print(f"Plan File: {local_path}")
+                print(f"Plan URL: {remote_url}")
+            else:
                 summary = format_plan_summary(plan_summary)
-                print(summary)
+                print(f"> Plan Review URL: {remote_url}")
+                print(">")
+                print(f"> {summary}")
 
             # Only open browser if website URL is provided and --no-browser is not set
             if args.s3_website_url and not args.no_browser:
-                webbrowser.open(url)
+                webbrowser.open(remote_url)
         else:
             # Local file behavior
             if not args.no_browser:
-                webbrowser.open(f"file://{output_path.absolute()}")
+                webbrowser.open(local_url)
             else:
-                print(f"Review Plan: {output_path.absolute()}")
+                print(f"Plan File: {local_path}")
 
     except FileNotFoundError as e:
         print(f"Error: {e}", file=sys.stderr)
