@@ -179,13 +179,21 @@ class HTMLRenderer:
         return "\n".join(diff_lines)
 
     def create_standalone_html(
-        self, plan_summary: PlanSummary, template_name: str = "modern.html"
+        self,
+        plan_summary: PlanSummary,
+        template_name: str = "modern.html",
+        pull_url: Optional[str] = None,
+        project_name: Optional[str] = None,
     ) -> str:
         """Create a standalone HTML file with embedded CSS and JavaScript."""
         template = self.env.get_template(template_name)
 
         return template.render(
-            plan=plan_summary, change_types=ChangeType, enumerate=enumerate
+            plan=plan_summary,
+            change_types=ChangeType,
+            enumerate=enumerate,
+            pull_url=pull_url,
+            project_name=project_name,
         )
 
     def _get_css_content(self) -> str:

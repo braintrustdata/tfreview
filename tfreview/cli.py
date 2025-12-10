@@ -3,9 +3,12 @@ import sys
 import webbrowser
 import re
 import hashlib
+import os
 from pathlib import Path
-from urllib.parse import urljoin
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .parser import PlanSummary
 
 # Handle both package and direct script execution
 try:
@@ -32,11 +35,31 @@ def calculate_checksum(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
 
 
+def format_plan_summary(plan_summary: "PlanSummary") -> str:
+    """Format plan summary in Terraform style: 'Plan: X to add, Y to change, Z to destroy.'"""
+    parts = []
+
+    if plan_summary.to_add > 0:
+        parts.append(f"{plan_summary.to_add} to add")
+    if plan_summary.to_change > 0:
+        parts.append(f"{plan_summary.to_change} to change")
+    if plan_summary.to_replace > 0:
+        parts.append(f"{plan_summary.to_replace} to replace")
+    if plan_summary.to_destroy > 0:
+        parts.append(f"{plan_summary.to_destroy} to destroy")
+
+    if parts:
+        return f"Plan: {', '.join(parts)}."
+    else:
+        return "Plan: No changes."
+
+
 def upload_to_s3(
     html_content: str,
     s3_path: str,
     plan_text: str,
     s3_website_url: Optional[str] = None,
+    atlantis: bool = False,
 ) -> str:
     """
     Upload HTML content to S3.
@@ -72,6 +95,25 @@ def upload_to_s3(
     # Ensure prefix ends with / if it exists
     if prefix and not prefix.endswith("/"):
         prefix += "/"
+
+    # If atlantis mode, construct path from environment variables
+    if atlantis:
+        base_repo_owner = os.environ.get("BASE_REPO_OWNER", "")
+        base_repo_name = os.environ.get("BASE_REPO_NAME", "")
+        project_name = os.environ.get("PROJECT_NAME", "")
+
+        # Build the atlantis path structure
+        atlantis_path_parts = []
+        if base_repo_owner:
+            atlantis_path_parts.append(base_repo_owner)
+        if base_repo_name:
+            atlantis_path_parts.append(base_repo_name)
+        if project_name:
+            atlantis_path_parts.append(project_name)
+
+        if atlantis_path_parts:
+            atlantis_prefix = "/".join(atlantis_path_parts) + "/"
+            prefix = prefix + atlantis_prefix
 
     # Calculate checksum and create filename
     checksum = calculate_checksum(plan_text)
@@ -179,6 +221,12 @@ Examples:
         default=None,
     )
 
+    parser.add_argument(
+        "--atlantis",
+        action="store_true",
+        help="Enable Atlantis mode: use BASE_REPO_OWNER/BASE_REPO_NAME/PROJECT_NAME in S3 path and display PULL_URL/PROJECT_NAME in HTML",
+    )
+
     parser.add_argument("--version", action="version", version="TFReview 1.0.0")
 
     args = parser.parse_args()
@@ -215,8 +263,17 @@ Examples:
         parser_instance = TerraformPlanParser()
         plan_summary = parser_instance.parse(plan_text)
 
+        # Get Atlantis environment variables if --atlantis is set
+        pull_url = None
+        project_name = None
+        if args.atlantis:
+            pull_url = os.environ.get("PULL_URL")
+            project_name = os.environ.get("PROJECT_NAME")
+
         renderer = HTMLRenderer()
-        html_content = renderer.create_standalone_html(plan_summary, args.template)
+        html_content = renderer.create_standalone_html(
+            plan_summary, args.template, pull_url=pull_url, project_name=project_name
+        )
 
         output_path = Path(args.output)
         # Create parent directory if it doesn't exist
@@ -232,8 +289,14 @@ Examples:
                 s3_path=args.s3_path,
                 plan_text=plan_text,
                 s3_website_url=args.s3_website_url,
+                atlantis=args.atlantis,
             )
-            print(f"Plan: {url}")
+            print(f"Plan Review URL: {url}")
+
+            # In atlantis mode, also print the plan summary
+            if args.atlantis:
+                summary = format_plan_summary(plan_summary)
+                print(summary)
 
             # Only open browser if website URL is provided and --no-browser is not set
             if args.s3_website_url and not args.no_browser:

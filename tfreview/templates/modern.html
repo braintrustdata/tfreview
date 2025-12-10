@@ -266,6 +266,45 @@
             vertical-align: middle;
         }
 
+        .atlantis-info {
+            background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%);
+            color: white;
+            padding: 12px 24px;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            align-items: center;
+            font-size: 0.9rem;
+        }
+
+        .atlantis-info-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .atlantis-info-label {
+            font-weight: 600;
+            opacity: 0.9;
+        }
+
+        .atlantis-info-value {
+            font-weight: 500;
+        }
+
+        .atlantis-info-value a {
+            color: #90cdf4;
+            text-decoration: none;
+            border-bottom: 1px solid rgba(144, 205, 244, 0.3);
+            transition: all 0.2s ease;
+        }
+
+        .atlantis-info-value a:hover {
+            color: #63b3ed;
+            border-bottom-color: rgba(99, 179, 237, 0.6);
+        }
+
         .plan-info {
             background: rgba(255, 255, 255, 0.1);
             padding: 12px 16px;
@@ -977,6 +1016,24 @@
                 {% endif %}
             </h1>
         </div>
+
+        {% if pull_url or project_name %}
+        <div class="atlantis-info">
+            {% if project_name %}
+            <div class="atlantis-info-item">
+                <span class="atlantis-info-label">📦 Project:</span>
+                <span class="atlantis-info-value">{{ project_name }}</span>
+            </div>
+            {% endif %}
+            {% if pull_url %}
+            <div class="atlantis-info-item">
+                <span class="atlantis-info-label">🔗 Pull Request:</span>
+                <span class="atlantis-info-value"><a href="{{ pull_url }}" target="_blank" rel="noopener noreferrer">{{
+                        pull_url }}</a></span>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
 
         {% if not plan.has_changes %}
         <div class="content-area">
