@@ -236,7 +236,7 @@ Examples:
                 plan_text=plan_text,
                 s3_website_url=args.s3_website_url,
             )
-            print(f"Uploaded to S3: {url}")
+            print(f"Plan: {url}")
 
             # Only open browser if website URL is provided and --no-browser is not set
             if args.s3_website_url and not args.no_browser:
