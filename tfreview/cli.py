@@ -215,9 +215,6 @@ Examples:
         parser_instance = TerraformPlanParser()
         plan_summary = parser_instance.parse(plan_text)
 
-        if not plan_summary.has_changes:
-            sys.exit(0)
-
         renderer = HTMLRenderer()
         html_content = renderer.create_standalone_html(plan_summary, args.template)
 
