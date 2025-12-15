@@ -211,13 +211,13 @@ Examples:
 
     parser.add_argument(
         "--s3-path",
-        help="Upload to S3 at the specified path (e.g., s3://mybucket/tfplans/)",
+        help="Upload to S3 at the specified path (e.g., s3://mybucket/tfplans/). Can also be set via TFREVIEW_S3_PATH env var.",
         default=None,
     )
 
     parser.add_argument(
         "--s3-website-url",
-        help="S3 static website URL (e.g., http://mysite.com). Used instead of default S3 URL when specified.",
+        help="S3 static website URL (e.g., http://mysite.com). Used instead of default S3 URL when specified. Can also be set via TFREVIEW_S3_WEBSITE_URL env var.",
         default=None,
     )
 
@@ -230,6 +230,13 @@ Examples:
     parser.add_argument("--version", action="version", version="TFReview 1.0.0")
 
     args = parser.parse_args()
+
+    # Check environment variables for S3 options if not provided via CLI
+    if not args.s3_path:
+        args.s3_path = os.environ.get("TFREVIEW_S3_PATH")
+
+    if not args.s3_website_url:
+        args.s3_website_url = os.environ.get("TFREVIEW_S3_WEBSITE_URL")
 
     try:
         if args.input == "-":
