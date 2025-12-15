@@ -540,6 +540,36 @@
             background: #f7fafc;
         }
 
+        .copy-link-btn {
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            padding: 4px 8px;
+            margin-left: 8px;
+            border-radius: 4px;
+            opacity: 0.6;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            font-size: 0.9rem;
+            color: #718096;
+        }
+
+        .copy-link-btn:hover {
+            opacity: 1;
+            background: rgba(0, 0, 0, 0.05);
+            color: #4a5568;
+        }
+
+        .copy-link-btn:active {
+            transform: scale(0.95);
+        }
+
+        .copy-link-btn.copied {
+            color: #48bb78;
+            opacity: 1;
+        }
+
         .resource-header.expanded {
             background: #e9ecef;
             box-shadow: 0 4px 24px 0 rgba(0, 0, 0, 0.10), 0 1.5px 6px 0 rgba(0, 0, 0, 0.08);
@@ -1136,8 +1166,10 @@
                     </div>
                     {% for resource in destroy_resources %}
                     {% set _ = all_grouped_resources.append((resource, resource_index[0])) %}
+                    {% set anchor_id = resource.resource_address|replace('.', '-')|replace('[', '-')|replace(']',
+                    '-')|replace('/', '-')|lower %}
                     <div class="resource-card {{ resource.change_type|change_type_class }}"
-                        data-resource-index="{{ resource_index[0] }}">
+                        data-resource-index="{{ resource_index[0] }}" id="resource-{{ anchor_id }}">
                         <div class="resource-header" onclick="toggleResource({{ resource_index[0] }})">
                             <div class="resource-header-main">
                                 <div class="resource-title">
@@ -1149,6 +1181,10 @@
                                         }}</span>
                                 </div>
                             </div>
+                            <button class="copy-link-btn" onclick="event.stopPropagation(); copyResourceLink(this)"
+                                data-anchor-id="{{ anchor_id }}" title="Copy link to this resource">
+                                🔗
+                            </button>
                             <div class="expand-indicator">▼</div>
                         </div>
 
@@ -1187,8 +1223,10 @@
                     </div>
                     {% for resource in replace_resources %}
                     {% set _ = all_grouped_resources.append((resource, resource_index[0])) %}
+                    {% set anchor_id = resource.resource_address|replace('.', '-')|replace('[', '-')|replace(']',
+                    '-')|replace('/', '-')|lower %}
                     <div class="resource-card {{ resource.change_type|change_type_class }}"
-                        data-resource-index="{{ resource_index[0] }}">
+                        data-resource-index="{{ resource_index[0] }}" id="resource-{{ anchor_id }}">
                         <div class="resource-header" onclick="toggleResource({{ resource_index[0] }})">
                             <div class="resource-header-main">
                                 <div class="resource-title">
@@ -1200,6 +1238,10 @@
                                         }}</span>
                                 </div>
                             </div>
+                            <button class="copy-link-btn" onclick="event.stopPropagation(); copyResourceLink(this)"
+                                data-anchor-id="{{ anchor_id }}" title="Copy link to this resource">
+                                🔗
+                            </button>
                             <div class="expand-indicator">▼</div>
                         </div>
 
@@ -1238,8 +1280,10 @@
                     </div>
                     {% for resource in update_resources %}
                     {% set _ = all_grouped_resources.append((resource, resource_index[0])) %}
+                    {% set anchor_id = resource.resource_address|replace('.', '-')|replace('[', '-')|replace(']',
+                    '-')|replace('/', '-')|lower %}
                     <div class="resource-card {{ resource.change_type|change_type_class }}"
-                        data-resource-index="{{ resource_index[0] }}">
+                        data-resource-index="{{ resource_index[0] }}" id="resource-{{ anchor_id }}">
                         <div class="resource-header" onclick="toggleResource({{ resource_index[0] }})">
                             <div class="resource-header-main">
                                 <div class="resource-title">
@@ -1251,6 +1295,10 @@
                                         }}</span>
                                 </div>
                             </div>
+                            <button class="copy-link-btn" onclick="event.stopPropagation(); copyResourceLink(this)"
+                                data-anchor-id="{{ anchor_id }}" title="Copy link to this resource">
+                                🔗
+                            </button>
                             <div class="expand-indicator">▼</div>
                         </div>
 
@@ -1289,8 +1337,10 @@
                     </div>
                     {% for resource in create_resources %}
                     {% set _ = all_grouped_resources.append((resource, resource_index[0])) %}
+                    {% set anchor_id = resource.resource_address|replace('.', '-')|replace('[', '-')|replace(']',
+                    '-')|replace('/', '-')|lower %}
                     <div class="resource-card {{ resource.change_type|change_type_class }}"
-                        data-resource-index="{{ resource_index[0] }}">
+                        data-resource-index="{{ resource_index[0] }}" id="resource-{{ anchor_id }}">
                         <div class="resource-header" onclick="toggleResource({{ resource_index[0] }})">
                             <div class="resource-header-main">
                                 <div class="resource-title">
@@ -1302,6 +1352,10 @@
                                         }}</span>
                                 </div>
                             </div>
+                            <button class="copy-link-btn" onclick="event.stopPropagation(); copyResourceLink(this)"
+                                data-anchor-id="{{ anchor_id }}" title="Copy link to this resource">
+                                🔗
+                            </button>
                             <div class="expand-indicator">▼</div>
                         </div>
 
@@ -1340,8 +1394,10 @@
                     </div>
                     {% for resource in moved_resources %}
                     {% set _ = all_grouped_resources.append((resource, resource_index[0])) %}
+                    {% set anchor_id = resource.resource_address|replace('.', '-')|replace('[', '-')|replace(']',
+                    '-')|replace('/', '-')|lower %}
                     <div class="resource-card {{ resource.change_type|change_type_class }}"
-                        data-resource-index="{{ resource_index[0] }}">
+                        data-resource-index="{{ resource_index[0] }}" id="resource-{{ anchor_id }}">
                         <div class="resource-header" onclick="toggleResource({{ resource_index[0] }})">
                             <div class="resource-header-main">
                                 <div class="resource-title">
@@ -1351,6 +1407,11 @@
                                     <span class="resource-address">{{
                                         resource.resource_address|highlight_resource_name|safe
                                         }}</span>
+                                    <button class="copy-link-btn"
+                                        onclick="event.stopPropagation(); copyResourceLink(this)"
+                                        data-anchor-id="{{ anchor_id }}" title="Copy link to this resource">
+                                        🔗
+                                    </button>
                                 </div>
                             </div>
                             <div class="expand-indicator">▼</div>
@@ -1742,6 +1803,90 @@
             }
         }
 
+        function copyResourceLink(button) {
+            const anchorId = button.getAttribute('data-anchor-id');
+            const url = new URL(window.location.href);
+            url.hash = `#resource-${anchorId}`;
+            const linkUrl = url.toString();
+
+            // Use the Clipboard API if available
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(linkUrl).then(() => {
+                    // Show visual feedback
+                    const originalText = button.innerHTML;
+                    button.innerHTML = '✓';
+                    button.classList.add('copied');
+                    setTimeout(() => {
+                        button.innerHTML = originalText;
+                        button.classList.remove('copied');
+                    }, 2000);
+                }).catch(err => {
+                    console.error('Failed to copy link:', err);
+                    fallbackCopyToClipboard(linkUrl);
+                });
+            } else {
+                // Fallback for older browsers
+                fallbackCopyToClipboard(linkUrl);
+            }
+        }
+
+        function fallbackCopyToClipboard(text) {
+            const textArea = document.createElement('textarea');
+            textArea.value = text;
+            textArea.style.position = 'fixed';
+            textArea.style.left = '-999999px';
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                // Show feedback
+                alert('Link copied to clipboard!');
+            } catch (err) {
+                console.error('Fallback copy failed:', err);
+            }
+            document.body.removeChild(textArea);
+        }
+
+        function handleHashNavigation() {
+            const hash = window.location.hash;
+            if (hash && hash.startsWith('#resource-')) {
+                const anchorId = hash.substring(1); // Remove the #
+                const resourceCard = document.getElementById(anchorId);
+
+                if (resourceCard) {
+                    // Get the resource index from the card
+                    const resourceIndex = parseInt(resourceCard.getAttribute('data-resource-index'));
+
+                    if (!isNaN(resourceIndex)) {
+                        // Get content and header elements
+                        const content = document.getElementById(`content-${resourceIndex}`);
+                        const header = content ? content.previousElementSibling : null;
+
+                        if (content && header) {
+                            // Force expansion if not already expanded
+                            if (!content.classList.contains('expanded')) {
+                                content.classList.add('expanded');
+                                header.classList.add('expanded');
+                            }
+
+                            // Wait a bit for the expansion to render, then scroll
+                            setTimeout(() => {
+                                const stickyHeaderHeight = document.querySelector('.header')?.offsetHeight || 0;
+                                const resourceHeaderHeight = header.offsetHeight || 0;
+                                const cardTop = resourceCard.getBoundingClientRect().top + window.scrollY - stickyHeaderHeight - (resourceHeaderHeight * 2);
+
+                                window.scrollTo({
+                                    top: Math.max(0, cardTop),
+                                    behavior: 'smooth'
+                                });
+                            }, 300); // Increased delay to ensure expansion renders
+                        }
+                    }
+                }
+            }
+        }
+
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', function () {
             // Generate plan ID from content hash
@@ -1762,18 +1907,30 @@
             // Initialize progress
             updateProgress();
 
-            // Initialize - expand first unreviewed resource
-            if (totalResources > 0) {
-                let firstUnreviewed = 0;
-                while (firstUnreviewed < totalResources && reviewedResources.has(String(firstUnreviewed))) {
-                    firstUnreviewed++;
-                }
-                if (firstUnreviewed < totalResources) {
-                    toggleResource(firstUnreviewed);
-                } else {
-                    toggleResource(0); // If all reviewed, show first one
+            // Handle hash navigation if present (with a small delay to ensure DOM is ready)
+            if (window.location.hash && window.location.hash.startsWith('#resource-')) {
+                setTimeout(() => {
+                    handleHashNavigation();
+                }, 100);
+            } else {
+                // Initialize - expand first unreviewed resource (only if no hash)
+                if (totalResources > 0) {
+                    let firstUnreviewed = 0;
+                    while (firstUnreviewed < totalResources && reviewedResources.has(String(firstUnreviewed))) {
+                        firstUnreviewed++;
+                    }
+                    if (firstUnreviewed < totalResources) {
+                        toggleResource(firstUnreviewed);
+                    } else {
+                        toggleResource(0); // If all reviewed, show first one
+                    }
                 }
             }
+
+            // Listen for hash changes (e.g., when user clicks a link)
+            window.addEventListener('hashchange', function () {
+                handleHashNavigation();
+            });
         });
     </script>
 </body>
