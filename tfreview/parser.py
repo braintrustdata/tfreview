@@ -56,6 +56,7 @@ class TerraformError:
     message: str
     file_path: Optional[str] = None
     line_number: Optional[int] = None
+    is_warning: bool = False
 
 
 @dataclass
@@ -69,7 +70,9 @@ class PlanSummary:
     has_changes: bool
     raw_plan: str
     errors: List[TerraformError]
+    warnings: List[TerraformError]
     has_errors: bool
+    has_warnings: bool
 
 
 class TerraformPlanParser:
@@ -98,7 +101,7 @@ class TerraformPlanParser:
         self.replacement_pattern = re.compile(
             r"^  ([+-]/[+-])\s*(.+?)\s*=\s*(.+?)(?:\s*->\s*(.+?))?$"
         )
-        
+
         # Pattern for error blocks (╷ starts error, ╵ ends error)
         self.error_start_pattern = re.compile(r"^╷\s*$")
         self.error_end_pattern = re.compile(r"^╵\s*$")
@@ -108,8 +111,8 @@ class TerraformPlanParser:
         lines = plan_text.split("\n")
 
         # Parse errors first
-        errors = self._parse_errors(lines)
-        
+        errors, warnings = self._parse_errors(lines)
+
         # Check for no changes
         if any(self.no_changes_pattern.search(line) for line in lines):
             return PlanSummary(
@@ -122,7 +125,9 @@ class TerraformPlanParser:
                 has_changes=False,
                 raw_plan=plan_text,
                 errors=errors,
+                warnings=warnings,
                 has_errors=len(errors) > 0,
+                has_warnings=len(warnings) > 0,
             )
 
         resource_changes = []
@@ -136,7 +141,7 @@ class TerraformPlanParser:
             # Check for change header
             header_match = self.change_header_pattern.match(line)
             moved_match = self.moved_pattern.match(line)
-            
+
             if header_match:
                 # Handle both "will be" and "must be" patterns
                 if header_match.group(1) and header_match.group(2):
@@ -190,7 +195,7 @@ class TerraformPlanParser:
                 # Handle "has moved to" pattern
                 old_address = moved_match.group(1)
                 new_address = moved_match.group(2)
-                
+
                 # Parse the resource change block for moved resources
                 resource_change, end_index = self._parse_moved_resource(
                     lines, i, old_address, new_address
@@ -223,7 +228,9 @@ class TerraformPlanParser:
             has_changes=len(resource_changes) > 0 or len(output_changes) > 0,
             raw_plan=plan_text,
             errors=errors,
+            warnings=warnings,
             has_errors=len(errors) > 0,
+            has_warnings=len(warnings) > 0,
         )
 
     def _parse_resource_change(
@@ -375,7 +382,7 @@ class TerraformPlanParser:
 
         # Move to the next line after the header
         i = start_index + 1
-        
+
         # Skip through the resource block (moved resources typically show the resource definition)
         while i < len(lines):
             line = lines[i].rstrip()
@@ -502,58 +509,76 @@ class TerraformPlanParser:
 
         return output_changes
 
-    def _parse_errors(self, lines: List[str]) -> List[TerraformError]:
-        """Parse error blocks from terraform plan output."""
-        errors = []
+    def _parse_errors(self, lines: List[str]) -> Tuple[List[TerraformError], List[TerraformError]]:
+        """Parse diagnostic blocks (errors and warnings) from terraform plan output."""
+        errors: List[TerraformError] = []
+        warnings: List[TerraformError] = []
         i = 0
-        
+
         while i < len(lines):
             line = lines[i].rstrip()
-            
+
             # Check for error block start
             if self.error_start_pattern.match(line):
-                error, end_index = self._parse_single_error(lines, i)
-                if error:
-                    errors.append(error)
+                diagnostic, end_index = self._parse_single_error(lines, i)
+                if diagnostic:
+                    if diagnostic.is_warning:
+                        warnings.append(diagnostic)
+                    else:
+                        errors.append(diagnostic)
                 i = end_index
             else:
                 i += 1
-                
-        return errors
+
+        return errors, warnings
 
     def _parse_single_error(self, lines: List[str], start_index: int) -> Tuple[Optional[TerraformError], int]:
         """Parse a single error block starting with ╷ and ending with ╵."""
         i = start_index + 1
-        error_lines = []
+        error_lines: List[str] = []
         title = ""
-        file_path = None
-        line_number = None
-        
+        file_path: Optional[str] = None
+        line_number: Optional[int] = None
+        is_warning = False
+
         while i < len(lines):
             line = lines[i].rstrip()
-            
+
             # Check for error block end
             if self.error_end_pattern.match(line):
                 break
-                
+
             # Skip empty lines at the start
             if not line.strip() and not error_lines:
                 i += 1
                 continue
-                
+
             error_lines.append(line)
             i += 1
-        
+
         if not error_lines:
             return None, i + 1
-            
+
         # Extract title (first non-empty line starting with │)
         for line in error_lines:
             clean_line = line.lstrip("│ ").strip()
-            if clean_line.startswith("Error:") or clean_line.startswith("Warning:"):
-                title = clean_line
+            if clean_line.startswith("Error:"):
+                # For very long error messages, truncate the title but keep full message
+                if len(clean_line) > 300:
+                    # Extract first part: "Error: " + first 250 chars of message
+                    title = clean_line[:300] + "..."
+                else:
+                    title = clean_line
+                is_warning = False
                 break
-                
+            elif clean_line.startswith("Warning:"):
+                if len(clean_line) > 300:
+                    title = clean_line[:300] + "..."
+                else:
+                    title = clean_line
+                is_warning = True
+                break
+
         # Look for file path and line number
         for line in error_lines:
             # Pattern: "│   on path/to/file.tf line 12, in resource..."
@@ -568,7 +593,7 @@ class TerraformPlanParser:
                 except (ValueError, IndexError):
                     pass
                 break
-        
+
         # Build the full error message from all lines
         message_lines = []
         for line in error_lines:
@@ -576,15 +601,16 @@ class TerraformPlanParser:
             clean_line = line.lstrip("│ ").rstrip()
             if clean_line:
                 message_lines.append(clean_line)
-        
+
         message = "\n".join(message_lines)
-        
+
         if not title:
-            title = "Terraform Error"
-            
+            title = "Terraform Warning" if is_warning else "Terraform Error"
+
         return TerraformError(
             title=title,
             message=message,
             file_path=file_path,
-            line_number=line_number
+            line_number=line_number,
+            is_warning=is_warning,
         ), i + 1

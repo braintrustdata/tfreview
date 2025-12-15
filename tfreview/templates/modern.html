@@ -54,14 +54,54 @@
             opacity: 0.3;
         }
 
+        /* Errors and Warnings collapsible section styles */
+        .errors-warnings-section {
+            margin-top: 24px;
+            margin-bottom: 24px;
+            background: #f3f4f6;
+            border-left: 4px solid #e53e3e;
+            box-shadow: 0 8px 24px 0 rgba(0, 0, 0, 0.10), 0 2px 8px 0 rgba(0, 0, 0, 0.08);
+            overflow: hidden;
+        }
+
+        .errors-warnings-header {
+            padding: 16px 20px;
+            cursor: pointer;
+            background: #f7fafc;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background-color 0.2s;
+            color: #222;
+            font-weight: 700;
+        }
+
+        .errors-warnings-header:hover {
+            background-color: #edf2f7;
+        }
+
+        .errors-warnings-content {
+            display: none;
+            padding: 20px;
+        }
+
+        .errors-warnings-content.expanded {
+            display: block;
+        }
+
         /* Error section styles */
         .error-section {
             background: linear-gradient(135deg, #fed7d7, #feb2b2);
             border-left: 4px solid #e53e3e;
-            margin: 16px 24px;
+            margin-bottom: 16px;
             padding: 16px 24px;
             border-radius: 8px;
             box-shadow: 0 2px 8px rgba(229, 62, 62, 0.2);
+        }
+
+        .error-section:last-child {
+            margin-bottom: 0;
         }
 
         .error-title {
@@ -106,6 +146,63 @@
         }
 
         .error-item-message {
+            color: #2d3748;
+            font-size: 0.9rem;
+            line-height: 1.4;
+            white-space: pre-wrap;
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+        }
+
+        /* Warning section styles (visually distinct from errors) */
+        .warning-section {
+            background: linear-gradient(135deg, #fefcbf, #faf089);
+            border-left: 4px solid #d69e2e;
+            margin-bottom: 16px;
+            padding: 16px 24px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(214, 158, 46, 0.2);
+        }
+
+        .warning-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .warning-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #b7791f;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .warning-item {
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 6px;
+            padding: 12px 16px;
+            margin-bottom: 8px;
+            border-left: 3px solid #d69e2e;
+        }
+
+        .warning-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .warning-item-title {
+            font-weight: 600;
+            color: #b7791f;
+            margin-bottom: 4px;
+        }
+
+        .warning-item-location {
+            font-size: 0.85rem;
+            color: #744210;
+            margin-bottom: 8px;
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+        }
+
+        .warning-item-message {
             color: #2d3748;
             font-size: 0.9rem;
             line-height: 1.4;
@@ -1067,31 +1164,80 @@
 
         {% if not plan.has_changes %}
         <div class="content-area">
-            <!-- Terraform Errors Section -->
-            {% if plan.has_errors %}
-            <div class="error-section">
-                <div class="error-title">
-                    ⚠️ Terraform Plan Errors ({{ plan.errors|length }})
+            <!-- Terraform Errors and Warnings Section (collapsible) -->
+            {% if plan.has_errors or plan.has_warnings %}
+            <div class="errors-warnings-section">
+                <div class="errors-warnings-header" onclick="toggleErrorsWarnings()">
+                    <div>
+                        <h3>
+                            {% if plan.has_errors and plan.has_warnings %}
+                            ⚠️ Terraform Plan Errors ({{ plan.errors|length }}) and Warnings ({{ plan.warnings|length
+                            }})
+                            {% elif plan.has_errors %}
+                            ⚠️ Terraform Plan Errors ({{ plan.errors|length }})
+                            {% else %}
+                            ⚠️ Terraform Plan Warnings ({{ plan.warnings|length }})
+                            {% endif %}
+                        </h3>
+                        <p style="font-size: 0.85rem; color: #718096; margin-top: 4px;">Click to view details</p>
+                    </div>
+                    <div class="expand-indicator" id="errorsWarningsIndicator">▼</div>
                 </div>
-                <ul class="error-list">
-                    {% for error in plan.errors %}
-                    <li class="error-item">
-                        <div class="error-item-title">{{ error.title }}</div>
-                        {% if error.file_path %}
-                        <div class="error-item-location">
-                            📁 {{ error.file_path }}{% if error.line_number %} (line {{ error.line_number }}){% endif %}
+
+                <div class="errors-warnings-content" id="errorsWarningsContent">
+                    {% if plan.has_errors %}
+                    <div class="error-section">
+                        <div class="error-title">
+                            ⚠️ Terraform Plan Errors ({{ plan.errors|length }})
                         </div>
-                        {% endif %}
-                        <div class="error-item-message">{{ error.message }}</div>
-                    </li>
-                    {% endfor %}
-                </ul>
+                        <ul class="error-list">
+                            {% for error in plan.errors %}
+                            <li class="error-item">
+                                <div class="error-item-title">{{ error.title }}</div>
+                                {% if error.file_path %}
+                                <div class="error-item-location">
+                                    📁 {{ error.file_path }}{% if error.line_number %} (line {{ error.line_number }}){%
+                                    endif %}
+                                </div>
+                                {% endif %}
+                                <div class="error-item-message">{{ error.message }}</div>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+
+                    {% if plan.has_warnings %}
+                    <div class="warning-section">
+                        <div class="warning-title">
+                            ⚠️ Terraform Plan Warnings ({{ plan.warnings|length }})
+                        </div>
+                        <ul class="error-list">
+                            {% for warning in plan.warnings %}
+                            <li class="warning-item">
+                                <div class="warning-item-title">{{ warning.title }}</div>
+                                {% if warning.file_path %}
+                                <div class="warning-item-location">
+                                    📁 {{ warning.file_path }}{% if warning.line_number %} (line {{ warning.line_number
+                                    }}){% endif %}
+                                </div>
+                                {% endif %}
+                                <div class="warning-item-message">{{ warning.message }}</div>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                </div>
             </div>
             {% endif %}
 
+            {# Only show the "No changes" message when there are truly no changes AND no errors/warnings #}
+            {% if not plan.has_errors and not plan.has_warnings %}
             <div class="no-changes">
                 ✅ No changes. Infrastructure is up-to-date.
             </div>
+            {% endif %}
             <!-- Full Plan Text Section (always shown, even if no changes) -->
             <div class="full-plan-section">
                 <div class="full-plan-header" onclick="toggleFullPlan()">
@@ -1113,25 +1259,71 @@
 
         {% if plan.has_changes %}
         <div class="content-area">
-            <!-- Terraform Errors Section -->
-            {% if plan.has_errors %}
-            <div class="error-section">
-                <div class="error-title">
-                    ⚠️ Terraform Plan Errors ({{ plan.errors|length }})
+            <!-- Terraform Errors and Warnings Section (collapsible) -->
+            {% if plan.has_errors or plan.has_warnings %}
+            <div class="errors-warnings-section">
+                <div class="errors-warnings-header" onclick="toggleErrorsWarnings()">
+                    <div>
+                        <h3>
+                            {% if plan.has_errors and plan.has_warnings %}
+                            ⚠️ Terraform Plan Errors ({{ plan.errors|length }}) and Warnings ({{ plan.warnings|length
+                            }})
+                            {% elif plan.has_errors %}
+                            ⚠️ Terraform Plan Errors ({{ plan.errors|length }})
+                            {% else %}
+                            ⚠️ Terraform Plan Warnings ({{ plan.warnings|length }})
+                            {% endif %}
+                        </h3>
+                        <p style="font-size: 0.85rem; color: #718096; margin-top: 4px;">Click to view details</p>
+                    </div>
+                    <div class="expand-indicator" id="errorsWarningsIndicator">▼</div>
                 </div>
-                <ul class="error-list">
-                    {% for error in plan.errors %}
-                    <li class="error-item">
-                        <div class="error-item-title">{{ error.title }}</div>
-                        {% if error.file_path %}
-                        <div class="error-item-location">
-                            📁 {{ error.file_path }}{% if error.line_number %} (line {{ error.line_number }}){% endif %}
+
+                <div class="errors-warnings-content" id="errorsWarningsContent">
+                    {% if plan.has_errors %}
+                    <div class="error-section">
+                        <div class="error-title">
+                            ⚠️ Terraform Plan Errors ({{ plan.errors|length }})
                         </div>
-                        {% endif %}
-                        <div class="error-item-message">{{ error.message }}</div>
-                    </li>
-                    {% endfor %}
-                </ul>
+                        <ul class="error-list">
+                            {% for error in plan.errors %}
+                            <li class="error-item">
+                                <div class="error-item-title">{{ error.title }}</div>
+                                {% if error.file_path %}
+                                <div class="error-item-location">
+                                    📁 {{ error.file_path }}{% if error.line_number %} (line {{ error.line_number }}){%
+                                    endif %}
+                                </div>
+                                {% endif %}
+                                <div class="error-item-message">{{ error.message }}</div>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+
+                    {% if plan.has_warnings %}
+                    <div class="warning-section">
+                        <div class="warning-title">
+                            ⚠️ Terraform Plan Warnings ({{ plan.warnings|length }})
+                        </div>
+                        <ul class="error-list">
+                            {% for warning in plan.warnings %}
+                            <li class="warning-item">
+                                <div class="warning-item-title">{{ warning.title }}</div>
+                                {% if warning.file_path %}
+                                <div class="warning-item-location">
+                                    📁 {{ warning.file_path }}{% if warning.line_number %} (line {{ warning.line_number
+                                    }}){% endif %}
+                                </div>
+                                {% endif %}
+                                <div class="warning-item-message">{{ warning.message }}</div>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                </div>
             </div>
             {% endif %}
 
@@ -1777,6 +1969,19 @@
         function toggleFullPlan() {
             const content = document.getElementById('fullPlanContent');
             const indicator = document.getElementById('fullPlanIndicator');
+
+            if (content.classList.contains('expanded')) {
+                content.classList.remove('expanded');
+                indicator.style.transform = 'rotate(0deg)';
+            } else {
+                content.classList.add('expanded');
+                indicator.style.transform = 'rotate(180deg)';
+            }
+        }
+
+        function toggleErrorsWarnings() {
+            const content = document.getElementById('errorsWarningsContent');
+            const indicator = document.getElementById('errorsWarningsIndicator');
 
             if (content.classList.contains('expanded')) {
                 content.classList.remove('expanded');
