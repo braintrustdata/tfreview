@@ -1599,13 +1599,12 @@
                                     <span class="resource-address">{{
                                         resource.resource_address|highlight_resource_name|safe
                                         }}</span>
-                                    <button class="copy-link-btn"
-                                        onclick="event.stopPropagation(); copyResourceLink(this)"
-                                        data-anchor-id="{{ anchor_id }}" title="Copy link to this resource">
-                                        🔗
-                                    </button>
                                 </div>
                             </div>
+                            <button class="copy-link-btn" onclick="event.stopPropagation(); copyResourceLink(this)"
+                                data-anchor-id="{{ anchor_id }}" title="Copy link to this resource">
+                                🔗
+                            </button>
                             <div class="expand-indicator">▼</div>
                         </div>
 
