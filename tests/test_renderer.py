@@ -172,11 +172,11 @@ class TestHTMLRenderer:
 
     def test_escape_js_escapes_template_interpolation(self):
         """Test JS escaping prevents template literal interpolation."""
-        test_input = "credentials: ${env:BASETEN_API_KEY}"
+        test_input = "credentials: ${env:EXAMPLE_API_URL}"
 
         result = str(self.renderer._escape_js(test_input))
 
-        assert "\\${env:BASETEN_API_KEY}" in result
+        assert "\\${env:EXAMPLE_API_URL}" in result
 
     def test_sensitive_value_rendering(self):
         """Test rendering of sensitive values."""
