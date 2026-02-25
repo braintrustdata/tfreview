@@ -220,6 +220,7 @@ class HTMLRenderer:
             .replace('"', '\\"')
             .replace("'", "\\'")
             .replace("`", "\\`")
+            .replace("${", "\\${")
             .replace("</", "<\\/")
         )
         return Markup(escaped)

@@ -170,6 +170,14 @@ class TestHTMLRenderer:
         assert "&gt;" in result
         assert "&amp;" in result
 
+    def test_escape_js_escapes_template_interpolation(self):
+        """Test JS escaping prevents template literal interpolation."""
+        test_input = "credentials: ${env:EXAMPLE_API_URL}"
+
+        result = str(self.renderer._escape_js(test_input))
+
+        assert "\\${env:EXAMPLE_API_URL}" in result
+
     def test_sensitive_value_rendering(self):
         """Test rendering of sensitive values."""
         plan_text = self.load_sample("sample_plan_2.txt")
