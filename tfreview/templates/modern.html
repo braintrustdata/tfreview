@@ -667,6 +667,43 @@
             opacity: 1;
         }
 
+        .full-plan-header-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .copy-plan-btn {
+            background: transparent;
+            border: 1px solid #cbd5e0;
+            cursor: pointer;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #4a5568;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            white-space: nowrap;
+        }
+
+        .copy-plan-btn:hover {
+            background: rgba(0, 0, 0, 0.05);
+            border-color: #a0aec0;
+            color: #2d3748;
+        }
+
+        .copy-plan-btn:active {
+            transform: scale(0.97);
+        }
+
+        .copy-plan-btn.copied {
+            color: #48bb78;
+            border-color: #48bb78;
+        }
+
         .resource-header.expanded {
             background: #e9ecef;
             box-shadow: 0 4px 24px 0 rgba(0, 0, 0, 0.10), 0 1.5px 6px 0 rgba(0, 0, 0, 0.08);
@@ -1247,7 +1284,11 @@
                             terraform plan
                             output for reference</p>
                     </div>
-                    <div class="expand-indicator" id="fullPlanIndicator">▼</div>
+                    <div class="full-plan-header-actions">
+                        <button class="copy-plan-btn" onclick="event.stopPropagation(); copyFullPlan(this)"
+                            title="Copy the full terraform plan to the clipboard">📋 Copy plan</button>
+                        <div class="expand-indicator" id="fullPlanIndicator">▼</div>
+                    </div>
                 </div>
 
                 <div class="full-plan-content" id="fullPlanContent">
@@ -1646,7 +1687,11 @@
                             terraform plan
                             output for reference</p>
                     </div>
-                    <div class="expand-indicator" id="fullPlanIndicator">▼</div>
+                    <div class="full-plan-header-actions">
+                        <button class="copy-plan-btn" onclick="event.stopPropagation(); copyFullPlan(this)"
+                            title="Copy the full terraform plan to the clipboard">📋 Copy plan</button>
+                        <div class="expand-indicator" id="fullPlanIndicator">▼</div>
+                    </div>
                 </div>
 
                 <div class="full-plan-content" id="fullPlanContent">
@@ -2035,6 +2080,11 @@
         }
 
         function fallbackCopyToClipboard(text) {
+            fallbackCopyText(text, () => alert('Link copied to clipboard!'));
+        }
+
+        // Generic textarea-based copy fallback for browsers without the Clipboard API.
+        function fallbackCopyText(text, onSuccess) {
             const textArea = document.createElement('textarea');
             textArea.value = text;
             textArea.style.position = 'fixed';
@@ -2044,13 +2094,59 @@
             textArea.select();
             try {
                 document.execCommand('copy');
-                // Show feedback
-                alert('Link copied to clipboard!');
+                if (onSuccess) onSuccess();
             } catch (err) {
                 console.error('Fallback copy failed:', err);
             }
             document.body.removeChild(textArea);
         }
+
+        // Copy the complete (plain-text) terraform plan to the clipboard.
+        function copyFullPlan(button) {
+            const originalText = button.innerHTML;
+            const showCopied = () => {
+                button.innerHTML = '✓ Copied';
+                button.classList.add('copied');
+                setTimeout(() => {
+                    button.innerHTML = originalText;
+                    button.classList.remove('copied');
+                }, 2000);
+            };
+
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(planContent).then(showCopied).catch(err => {
+                    console.error('Failed to copy plan:', err);
+                    fallbackCopyText(planContent, showCopied);
+                });
+            } else {
+                fallbackCopyText(planContent, showCopied);
+            }
+        }
+
+        // Scope "Select All" (Cmd/Ctrl+A) to the plan-output block the caret is in,
+        // so it selects only that resource diff or the full plan rather than the whole page.
+        function selectableBlockFor(node) {
+            if (!node) return null;
+            const el = node.nodeType === 1 ? node : node.parentElement;
+            return el ? el.closest('.full-plan-text, .resource-diff') : null;
+        }
+
+        document.addEventListener('keydown', function (e) {
+            const isSelectAll = (e.key === 'a' || e.key === 'A')
+                && (e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey;
+            if (!isSelectAll) return;
+
+            const selection = window.getSelection();
+            let block = selection ? selectableBlockFor(selection.anchorNode) : null;
+            if (!block) block = selectableBlockFor(document.activeElement);
+            if (!block) return; // outside a plan block: keep the default whole-page select
+
+            e.preventDefault();
+            const range = document.createRange();
+            range.selectNodeContents(block);
+            selection.removeAllRanges();
+            selection.addRange(range);
+        });
 
         function handleHashNavigation() {
             const hash = window.location.hash;
