@@ -48,6 +48,14 @@ def format_plan_summary(plan_summary: "PlanSummary") -> str:
     if plan_summary.to_destroy > 0:
         parts.append(f"{plan_summary.to_destroy} to destroy")
 
+    output_count = len(plan_summary.output_changes)
+    if output_count:
+        noun = "output" if output_count == 1 else "outputs"
+        output_summary = f"{output_count} {noun} changed"
+        if not parts:
+            return f"Plan Summary: {output_summary}; no resource changes."
+        parts.append(output_summary)
+
     if parts:
         return f"Plan Summary: {', '.join(parts)}."
     else:
@@ -79,9 +87,16 @@ def upload_to_s3(
     """
     try:
         import boto3
-        from botocore.exceptions import ClientError, NoCredentialsError, PartialCredentialsError
+        from botocore.exceptions import (
+            ClientError,
+            NoCredentialsError,
+            PartialCredentialsError,
+        )
     except ImportError:
-        print("Error: boto3 is required for S3 upload. Install with: pip install boto3", file=sys.stderr)
+        print(
+            "Error: boto3 is required for S3 upload. Install with: pip install boto3",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     # Parse S3 path
@@ -126,7 +141,10 @@ def upload_to_s3(
         # Test credentials by checking if bucket exists
         s3_client.head_bucket(Bucket=bucket_name)
     except (NoCredentialsError, PartialCredentialsError, ClientError) as e:
-        print(f"Error checking bucket '{bucket_name}'. Please verify you have AWS credentials set.", file=sys.stderr)
+        print(
+            f"Error checking bucket '{bucket_name}'. Please verify you have AWS credentials set.",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     # Upload file
@@ -148,7 +166,9 @@ def upload_to_s3(
         url = f"{base_url}/{s3_key}"
     else:
         # Use standard S3 URL
-        region = s3_client.get_bucket_location(Bucket=bucket_name).get("LocationConstraint")
+        region = s3_client.get_bucket_location(Bucket=bucket_name).get(
+            "LocationConstraint"
+        )
         if region is None:
             region = "us-east-1"
         url = f"https://{bucket_name}.s3.{region}.amazonaws.com/{s3_key}"
