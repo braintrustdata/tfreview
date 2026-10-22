@@ -499,8 +499,16 @@ class TerraformPlanParser:
         current = []
         name = None
         operation = None
+        # Terraform already validates identifiers. Capture the complete name token
+        # so Unicode letters and combining marks survive without an ASCII filter.
+        indent = r"  "
+        if lines[start_index].strip() == "Outputs:":
+            first_entry = next(
+                (line for line in lines[start_index + 1 :] if line.strip()), ""
+            )
+            indent = re.escape(first_entry[: len(first_entry) - len(first_entry.lstrip())])
         pattern = re.compile(
-            r"^  (?:(?P<op>[+~-]) )?(?P<name>[A-Za-z_][A-Za-z0-9_-]*)\s*="
+            rf"^{indent}(?:(?P<op>[+~-]) )?(?P<name>[^\s=]+)\s*="
         )
 
         def finish():
@@ -530,7 +538,9 @@ class TerraformPlanParser:
                 finish()
                 name, operation = match.group("name"), match.group("op")
                 current = [line]
-            elif line.strip() and not line.startswith(" "):
+            elif line.strip() and not line.startswith(" ") and line.strip() not in (
+                "}", "]", ")",
+            ):
                 break
             elif name is not None:
                 current.append(line)
