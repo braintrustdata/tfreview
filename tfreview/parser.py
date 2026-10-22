@@ -39,7 +39,9 @@ class ResourceChange:
     nested_changes: List[Dict[str, Any]]
     has_sensitive: bool
     has_computed: bool
-    was_moved_from: Optional[str] = None  # Track if this resource was moved from another address
+    was_moved_from: Optional[str] = (
+        None  # Track if this resource was moved from another address
+    )
 
 
 @dataclass
@@ -48,6 +50,7 @@ class OutputChange:
     old_value: Optional[str] = None
     new_value: Optional[str] = None
     is_sensitive: bool = False
+    diff_text: str = ""
 
 
 @dataclass
@@ -84,9 +87,7 @@ class TerraformPlanParser:
             r"^  # (.+?) will be (.+?)$|^  # (.+?) must be (.+?)$"
         )
         # Pattern for "has moved to" changes
-        self.moved_pattern = re.compile(
-            r"^  # (.+?) has moved to (.+?)$"
-        )
+        self.moved_pattern = re.compile(r"^  # (.+?) has moved to (.+?)$")
         self.resource_address_pattern = re.compile(r"^(.+?)\.(.+?)(?:\[(.+?)\])?$")
         self.summary_pattern = re.compile(
             r"Plan: (\d+) to add, (\d+) to change, (\d+) to destroy"
@@ -213,7 +214,7 @@ class TerraformPlanParser:
                     pass
 
                 # Check for output changes
-                if line.strip().startswith("Outputs:"):
+                if line.strip() in ("Outputs:", "Changes to Outputs:"):
                     output_changes = self._parse_output_changes(lines, i)
 
                 i += 1
@@ -256,6 +257,9 @@ class TerraformPlanParser:
         while i < len(lines):
             line = lines[i].rstrip()
 
+            if line.strip() in ("Outputs:", "Changes to Outputs:"):
+                break
+
             # Check for delimiter: blank line followed by "  #" (next resource) or "Plan:" (summary)
             if not line.strip() and i + 1 < len(lines):
                 next_line = lines[i + 1]
@@ -270,9 +274,17 @@ class TerraformPlanParser:
             if "(moved from " in line:
                 # Extract the original address from the line
                 import re
-                moved_from_match = re.search(r'\(moved from (.+?)\)', line)
+
+                moved_from_match = re.search(r"\(moved from (.+?)\)", line)
                 if moved_from_match:
                     was_moved_from = moved_from_match.group(1)
+
+            # Detect markers within this resource even when indentation varies.
+            # Output markers must not supply resource sensitivity/computed flags.
+            has_sensitive = has_sensitive or "(sensitive value)" in line
+            has_computed = (
+                has_computed or "(known after apply)" in line or "<computed>" in line
+            )
 
             # Parse attribute changes
             attr_match = self.attribute_change_pattern.match(line)
@@ -387,6 +399,9 @@ class TerraformPlanParser:
         while i < len(lines):
             line = lines[i].rstrip()
 
+            if line.strip() in ("Outputs:", "Changes to Outputs:"):
+                break
+
             # Check for delimiter: blank line followed by "  #" (next resource) or "Plan:" (summary)
             if not line.strip() and i + 1 < len(lines):
                 next_line = lines[i + 1]
@@ -479,37 +494,62 @@ class TerraformPlanParser:
     def _parse_output_changes(
         self, lines: List[str], start_index: int
     ) -> List[OutputChange]:
-        """Parse output changes section."""
-        output_changes = []
-        i = start_index + 1
+        """Parse top-level outputs, retaining multiline diffs without footer text."""
+        outputs = []
+        current = []
+        name = None
+        operation = None
+        # Terraform already validates identifiers. Capture the complete name token
+        # so Unicode letters and combining marks survive without an ASCII filter.
+        indent = r"  "
+        if lines[start_index].strip() == "Outputs:":
+            first_entry = next(
+                (line for line in lines[start_index + 1 :] if line.strip()), ""
+            )
+            indent = re.escape(first_entry[: len(first_entry) - len(first_entry.lstrip())])
+        pattern = re.compile(
+            rf"^{indent}(?:(?P<op>[+~-]) )?(?P<name>[^\s=]+)\s*="
+        )
 
-        while i < len(lines):
-            line = lines[i].strip()
-            if not line or line.startswith("─"):
-                i += 1
-                continue
+        def finish():
+            if name is None:
+                return
+            diff = "\n".join(current).rstrip()
+            value = current[0].split("=", 1)[1].strip()
+            sensitive = "(sensitive value)" in diff
+            old, new = None, value
+            if " -> " in value:
+                old, new = value.split(" -> ", 1)
+            elif operation == "-":
+                old, new = value, None
+            outputs.append(
+                OutputChange(
+                    name=name,
+                    diff_text=diff,
+                    old_value=old,
+                    new_value=new,
+                    is_sensitive=sensitive,
+                )
+            )
 
-            # Look for output definitions
-            if "=" in line:
-                parts = line.split("=", 1)
-                if len(parts) == 2:
-                    name = parts[0].strip()
-                    value = parts[1].strip()
-                    is_sensitive = "(sensitive value)" in value
+        for line in lines[start_index + 1 :]:
+            match = pattern.match(line)
+            if match:
+                finish()
+                name, operation = match.group("name"), match.group("op")
+                current = [line]
+            elif line.strip() and not line.startswith(" ") and line.strip() not in (
+                "}", "]", ")",
+            ):
+                break
+            elif name is not None:
+                current.append(line)
+        finish()
+        return outputs
 
-                    output_changes.append(
-                        OutputChange(
-                            name=name,
-                            new_value=value if not is_sensitive else "(sensitive)",
-                            is_sensitive=is_sensitive,
-                        )
-                    )
-
-            i += 1
-
-        return output_changes
-
-    def _parse_errors(self, lines: List[str]) -> Tuple[List[TerraformError], List[TerraformError]]:
+    def _parse_errors(
+        self, lines: List[str]
+    ) -> Tuple[List[TerraformError], List[TerraformError]]:
         """Parse diagnostic blocks (errors and warnings) from terraform plan output."""
         errors: List[TerraformError] = []
         warnings: List[TerraformError] = []
@@ -532,7 +572,9 @@ class TerraformPlanParser:
 
         return errors, warnings
 
-    def _parse_single_error(self, lines: List[str], start_index: int) -> Tuple[Optional[TerraformError], int]:
+    def _parse_single_error(
+        self, lines: List[str], start_index: int
+    ) -> Tuple[Optional[TerraformError], int]:
         """Parse a single error block starting with ╷ and ending with ╵."""
         i = start_index + 1
         error_lines: List[str] = []
@@ -607,10 +649,13 @@ class TerraformPlanParser:
         if not title:
             title = "Terraform Warning" if is_warning else "Terraform Error"
 
-        return TerraformError(
-            title=title,
-            message=message,
-            file_path=file_path,
-            line_number=line_number,
-            is_warning=is_warning,
-        ), i + 1
+        return (
+            TerraformError(
+                title=title,
+                message=message,
+                file_path=file_path,
+                line_number=line_number,
+                is_warning=is_warning,
+            ),
+            i + 1,
+        )

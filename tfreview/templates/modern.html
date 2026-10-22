@@ -1132,6 +1132,11 @@
                 <div class="header-title">🔍 Terraform Plan</div>
                 {% if plan.has_changes %}
                 <div class="header-counts">
+                    {% if plan.output_changes %}
+                    <button class="header-count-item header-count-change" onclick="scrollToSection('output-changes')">
+                        {{ plan.output_changes|length }} output changes
+                    </button>
+                    {% endif %}
                     {% if plan.to_destroy > 0 %}
                     <button class="header-count-item header-count-destroy" onclick="scrollToSection('destroy-group')">
                         <span class="header-count-icon">❌</span> {{ plan.to_destroy }} to destroy
@@ -1677,6 +1682,16 @@
                 </div>
                 {% endif %}
             </div>
+
+            {% if plan.output_changes %}
+            <section class="full-plan-section output-changes" id="output-changes">
+                <h3>Output changes ({{ plan.output_changes|length }})</h3>
+                {% for output in plan.output_changes %}
+                <h4>{{ output.name }}</h4>
+                <pre class="resource-diff">{{ output.diff_text|colorize_terraform|safe }}</pre>
+                {% endfor %}
+            </section>
+            {% endif %}
 
             <!-- Full Plan Text Section -->
             <div class="full-plan-section">
